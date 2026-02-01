@@ -46,6 +46,7 @@ The User Service manages identity and access management for AccountabilityAtlas.
 User (temporal - sys_period tracks history)
 ├── id: UUID
 ├── email: String
+├── emailVerified: boolean (default: false)
 ├── passwordHash: String (nullable for OAuth-only)
 ├── displayName: String
 ├── avatarUrl: String (nullable)
@@ -64,6 +65,24 @@ OAuthLink (temporal - sys_period tracks history)
 ├── provider: OAuthProvider (GOOGLE, APPLE)
 ├── providerId: String
 └── sysPeriod: tstzrange  // lower bound = linked time
+
+Session (non-temporal - transient, high churn)
+├── id: UUID
+├── userId: UUID
+├── refreshTokenHash: String
+├── deviceInfo: String (nullable)
+├── ipAddress: InetAddress (nullable)
+├── createdAt: Instant
+├── expiresAt: Instant
+└── revokedAt: Instant (nullable)
+
+PasswordReset (non-temporal - transient, expires in 24 hours)
+├── id: UUID
+├── userId: UUID
+├── tokenHash: String
+├── createdAt: Instant
+├── expiresAt: Instant
+└── usedAt: Instant (nullable)
 ```
 
 ## API Endpoints
