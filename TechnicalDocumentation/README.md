@@ -43,23 +43,27 @@ The User Service manages identity and access management for AccountabilityAtlas.
 ## Domain Model
 
 ```
-User
+User (temporal - sys_period tracks history)
 ├── id: UUID
 ├── email: String
 ├── passwordHash: String (nullable for OAuth-only)
 ├── displayName: String
 ├── avatarUrl: String (nullable)
 ├── trustTier: TrustTier (NEW, TRUSTED, MODERATOR, ADMIN)
+└── sysPeriod: tstzrange  // lower bound = created, NULL upper = current
+
+UserStats (non-temporal - counters change frequently)
+├── userId: UUID
 ├── submissionCount: int
 ├── approvedCount: int
 ├── rejectedCount: int
-└── createdAt: Instant
+└── updatedAt: Instant
 
-OAuthLink
+OAuthLink (temporal - sys_period tracks history)
 ├── userId: UUID
 ├── provider: OAuthProvider (GOOGLE, APPLE)
 ├── providerId: String
-└── linkedAt: Instant
+└── sysPeriod: tstzrange  // lower bound = linked time
 ```
 
 ## API Endpoints
