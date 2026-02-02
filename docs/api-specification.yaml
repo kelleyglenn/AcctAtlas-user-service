@@ -1,0 +1,813 @@
+openapi: 3.1.0
+info:
+  title: AccountabilityAtlas User Service API
+  version: 1.0.0
+  description: |
+    User identity and access management for AccountabilityAtlas.
+
+    ## Access Patterns
+    - **Public (via Gateway)**: `https://api.accountabilityatlas.com/api/v1/auth/...`
+    - **Internal (service-to-service)**: `http://user-service:8081/auth/...`
+
+    The API Gateway adds the `/api/v1` prefix for public requests.
+    Services calling directly use paths without the version prefix.
+  contact:
+    name: AccountabilityAtlas Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8081
+    description: Local development (direct)
+  - url: http://user-service:8081
+    description: Internal service mesh (Kubernetes/ECS service discovery)
+  - url: https://api.accountabilityatlas.com/api/v1
+    description: Production (via API Gateway - adds /api/v1 prefix)
+
+tags:
+  - name: Authentication
+    description: Registration, login, logout, and token management
+  - name: Users
+    description: User profile operations
+  - name: Admin
+    description: Administrative operations (trust tier management)
+
+security:
+  - bearerAuth: []
+
+paths:
+  /auth/register:
+    post:
+      operationId: registerUser
+      summary: Create a new user account
+      description: |
+        Register a new user with email and password. Returns the created user
+        profile and authentication tokens. New users start with trust tier NEW.
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Account created successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegisterResponse'
+              example:
+                user:
+                  id: "550e8400-e29b-41d4-a716-446655440000"
+                  email: "auditor@example.com"
+                  emailVerified: false
+                  displayName: "FirstAmendmentAuditor"
+                  avatarUrl: null
+                  trustTier: "NEW"
+                  createdAt: "2025-02-01T12:00:00Z"
+                tokens:
+                  accessToken: "eyJhbGciOiJIUzI1NiIs..."
+                  refreshToken: "dGhpcyBpcyBhIHJlZnJl..."
+                  expiresIn: 3600
+                  tokenType: "Bearer"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "EMAIL_EXISTS"
+                message: "An account with this email already exists"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/login:
+    post:
+      operationId: loginUser
+      summary: Authenticate with email and password
+      description: |
+        Authenticate an existing user and receive access/refresh tokens.
+        Failed attempts are rate-limited to prevent brute force attacks.
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "INVALID_CREDENTIALS"
+                message: "Email or password is incorrect"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/oauth/{provider}:
+    post:
+      operationId: oauthLogin
+      summary: Authenticate via OAuth provider
+      description: |
+        Exchange an OAuth ID token for AccountabilityAtlas tokens.
+        Creates a new account if the OAuth identity is not yet linked.
+      tags: [Authentication]
+      security: []
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            $ref: '#/components/schemas/OAuthProvider'
+          description: OAuth provider (GOOGLE or APPLE)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/OAuthRequest'
+      responses:
+        '200':
+          description: Authentication successful (existing user)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthResponse'
+        '201':
+          description: Authentication successful (new account created)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OAuthResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Invalid or expired OAuth token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "INVALID_OAUTH_TOKEN"
+                message: "The OAuth token is invalid or has expired"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  /auth/refresh:
+    post:
+      operationId: refreshTokens
+      summary: Refresh access token
+      description: |
+        Exchange a valid refresh token for a new token pair.
+        The refresh token is rotated on each use (one-time use).
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Tokens refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '401':
+          description: Invalid, expired, or revoked refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "INVALID_REFRESH_TOKEN"
+                message: "Refresh token is invalid, expired, or has been revoked"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  /auth/logout:
+    post:
+      operationId: logoutUser
+      summary: Invalidate current session
+      description: |
+        Revoke the current refresh token, ending the session.
+        The access token remains valid until expiry but the refresh token
+        can no longer be used.
+      tags: [Authentication]
+      responses:
+        '204':
+          description: Logout successful (no content)
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/password/reset:
+    post:
+      operationId: requestPasswordReset
+      summary: Request password reset email
+      description: |
+        Initiates password reset flow by sending a reset link to the user's email.
+        Always returns 202 regardless of whether the email exists (prevents enumeration).
+        Reset tokens expire after 24 hours.
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetRequest'
+      responses:
+        '202':
+          description: Reset email queued (if account exists)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "If an account exists with this email, a reset link has been sent"
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /auth/password/reset/confirm:
+    post:
+      operationId: confirmPasswordReset
+      summary: Complete password reset
+      description: |
+        Validates the reset token and sets a new password.
+        Token is single-use and invalidated after successful reset.
+      tags: [Authentication]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PasswordResetConfirmRequest'
+      responses:
+        '200':
+          description: Password reset successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+              example:
+                message: "Password has been reset successfully"
+        '400':
+          description: Invalid or expired reset token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "INVALID_RESET_TOKEN"
+                message: "Reset token is invalid, expired, or has already been used"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
+  /users/me:
+    get:
+      operationId: getCurrentUser
+      summary: Get current user profile
+      description: Returns the authenticated user's full profile including email.
+      tags: [Users]
+      responses:
+        '200':
+          description: User profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440000"
+                email: "auditor@example.com"
+                emailVerified: true
+                displayName: "FirstAmendmentAuditor"
+                avatarUrl: "https://example.com/avatar.jpg"
+                trustTier: "TRUSTED"
+                createdAt: "2024-06-15T12:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      operationId: updateCurrentUser
+      summary: Update current user profile
+      description: |
+        Update the authenticated user's profile. Only provided fields are updated.
+        Email changes require re-verification.
+      tags: [Users]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Email already in use by another account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                code: "EMAIL_EXISTS"
+                message: "This email is already associated with another account"
+                traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+  /users/{id}:
+    get:
+      operationId: getUserById
+      summary: Get user public profile
+      description: |
+        Returns a user's public profile. Does not include email or sensitive data.
+        Available to any authenticated user.
+      tags: [Users]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID
+      responses:
+        '200':
+          description: Public profile retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserPublicProfile'
+              example:
+                id: "550e8400-e29b-41d4-a716-446655440000"
+                displayName: "FirstAmendmentAuditor"
+                avatarUrl: "https://example.com/avatar.jpg"
+                trustTier: "TRUSTED"
+                stats:
+                  submissionCount: 42
+                  approvedCount: 38
+                createdAt: "2024-06-15T12:00:00Z"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /users/{id}/trust-tier:
+    put:
+      operationId: updateUserTrustTier
+      summary: Update user trust tier (Admin only)
+      description: |
+        Manually set a user's trust tier. Only available to ADMIN users.
+        Used for promoting users to MODERATOR or demoting for abuse.
+      tags: [Admin]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: User ID to update
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateTrustTierRequest'
+      responses:
+        '200':
+          description: Trust tier updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: |
+        JWT access token. Obtain via `/auth/login` or `/auth/oauth/{provider}`.
+        Tokens expire after 1 hour. Use `/auth/refresh` with refresh token to obtain new access token.
+
+  schemas:
+    # Enums
+    TrustTier:
+      type: string
+      enum: [NEW, TRUSTED, MODERATOR, ADMIN]
+      description: |
+        User trust level determining content moderation requirements:
+        - `NEW`: All submissions require moderation review
+        - `TRUSTED`: Submissions auto-approved (earned after 30 days + 10 approved submissions)
+        - `MODERATOR`: Can review and approve/reject content
+        - `ADMIN`: Full system access including trust tier management
+
+    OAuthProvider:
+      type: string
+      enum: [GOOGLE, APPLE]
+
+    # Core domain objects
+    User:
+      type: object
+      required: [id, email, displayName, trustTier, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        emailVerified:
+          type: boolean
+          default: false
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 100
+        avatarUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          nullable: true
+        trustTier:
+          $ref: '#/components/schemas/TrustTier'
+        createdAt:
+          type: string
+          format: date-time
+          description: Account creation timestamp
+
+    UserPublicProfile:
+      type: object
+      description: Public-facing user info (no email, no sensitive data)
+      required: [id, displayName, trustTier, createdAt]
+      properties:
+        id:
+          type: string
+          format: uuid
+        displayName:
+          type: string
+          maxLength: 100
+        avatarUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          nullable: true
+        trustTier:
+          $ref: '#/components/schemas/TrustTier'
+        stats:
+          $ref: '#/components/schemas/UserPublicStats'
+        createdAt:
+          type: string
+          format: date-time
+
+    UserPublicStats:
+      type: object
+      description: Public contribution statistics
+      properties:
+        submissionCount:
+          type: integer
+          minimum: 0
+        approvedCount:
+          type: integer
+          minimum: 0
+
+    OAuthLink:
+      type: object
+      required: [provider, linkedAt]
+      properties:
+        provider:
+          $ref: '#/components/schemas/OAuthProvider'
+        linkedAt:
+          type: string
+          format: date-time
+
+    TokenPair:
+      type: object
+      required: [accessToken, refreshToken, expiresIn]
+      properties:
+        accessToken:
+          type: string
+          description: JWT access token (1 hour expiry)
+        refreshToken:
+          type: string
+          description: Opaque refresh token (30 day expiry, rotated on use)
+        expiresIn:
+          type: integer
+          description: Access token lifetime in seconds
+          examples: [3600]
+        tokenType:
+          type: string
+          default: Bearer
+
+    # Authentication requests/responses
+    RegisterRequest:
+      type: object
+      required: [email, password, displayName]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+          description: Minimum 8 chars, must include uppercase, lowercase, and number
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 100
+      examples:
+        - email: "auditor@example.com"
+          password: "SecurePass123"
+          displayName: "FirstAmendmentAuditor"
+
+    RegisterResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+        password:
+          type: string
+          format: password
+          maxLength: 128
+      examples:
+        - email: "auditor@example.com"
+          password: "SecurePass123"
+
+    LoginResponse:
+      type: object
+      required: [user, tokens]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+
+    OAuthRequest:
+      type: object
+      required: [idToken]
+      properties:
+        idToken:
+          type: string
+          maxLength: 4096
+          description: ID token from OAuth provider (Google/Apple)
+        nonce:
+          type: string
+          maxLength: 255
+          description: Nonce for token validation (required for Apple)
+      examples:
+        - idToken: "eyJhbGciOiJSUzI1NiIsInR5cCI6Ikp..."
+
+    OAuthResponse:
+      type: object
+      required: [user, tokens, isNewUser]
+      properties:
+        user:
+          $ref: '#/components/schemas/User'
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+        isNewUser:
+          type: boolean
+          description: True if this OAuth login created a new account
+
+    RefreshRequest:
+      type: object
+      required: [refreshToken]
+      properties:
+        refreshToken:
+          type: string
+          maxLength: 512
+      examples:
+        - refreshToken: "dGhpcyBpcyBhIHJlZnJlc2ggdG9rZW4..."
+
+    RefreshResponse:
+      type: object
+      required: [tokens]
+      properties:
+        tokens:
+          $ref: '#/components/schemas/TokenPair'
+          description: New token pair (refresh token is rotated)
+
+    PasswordResetRequest:
+      type: object
+      required: [email]
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+      examples:
+        - email: "auditor@example.com"
+
+    PasswordResetConfirmRequest:
+      type: object
+      required: [token, newPassword]
+      properties:
+        token:
+          type: string
+          maxLength: 255
+          description: Reset token from email link
+        newPassword:
+          type: string
+          format: password
+          minLength: 8
+          maxLength: 128
+      examples:
+        - token: "abc123resettoken"
+          newPassword: "NewSecurePass456"
+
+    # User update requests
+    UpdateUserRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          description: New email (requires re-verification)
+        displayName:
+          type: string
+          minLength: 2
+          maxLength: 100
+        avatarUrl:
+          type: string
+          format: uri
+          maxLength: 500
+          nullable: true
+      examples:
+        - displayName: "UpdatedDisplayName"
+          avatarUrl: "https://example.com/new-avatar.jpg"
+
+    UpdateTrustTierRequest:
+      type: object
+      required: [trustTier]
+      properties:
+        trustTier:
+          $ref: '#/components/schemas/TrustTier'
+        reason:
+          type: string
+          maxLength: 500
+          description: Reason for the change (logged for audit)
+      examples:
+        - trustTier: "MODERATOR"
+          reason: "Promoted for excellent contribution history"
+
+    # Error schemas
+    Error:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          description: Machine-readable error code
+          examples: ["VALIDATION_ERROR", "UNAUTHORIZED", "NOT_FOUND"]
+        message:
+          type: string
+          description: Human-readable error message
+          examples: ["Email address is already registered"]
+        details:
+          type: array
+          description: Field-level validation errors (when applicable)
+          items:
+            $ref: '#/components/schemas/FieldError'
+        traceId:
+          type: string
+          format: uuid
+          description: Correlation ID for debugging (from X-Ray)
+
+    FieldError:
+      type: object
+      required: [field, message]
+      properties:
+        field:
+          type: string
+          examples: ["email", "password"]
+        message:
+          type: string
+          examples: ["must be a valid email address"]
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters or body
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: VALIDATION_ERROR
+            message: Request validation failed
+            details:
+              - field: email
+                message: must be a valid email address
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    Unauthorized:
+      description: Missing or invalid authentication token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: UNAUTHORIZED
+            message: Access token is missing or invalid
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    Forbidden:
+      description: Authenticated but lacking required permissions
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: FORBIDDEN
+            message: You do not have permission to perform this action
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    NotFound:
+      description: Requested resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: NOT_FOUND
+            message: User not found
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+
+    RateLimited:
+      description: Too many requests
+      headers:
+        Retry-After:
+          schema:
+            type: integer
+          description: Seconds until rate limit resets
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+          example:
+            code: RATE_LIMITED
+            message: Too many requests. Please retry after 60 seconds.
+            traceId: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
