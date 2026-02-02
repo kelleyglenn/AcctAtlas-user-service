@@ -36,9 +36,9 @@ The User Service manages identity and access management for AccountabilityAtlas.
 | Document | Status | Description |
 |----------|--------|-------------|
 | [api-specification.yaml](api-specification.yaml) | Complete | OpenAPI 3.1 specification |
-| [database-schema.md](database-schema.md) | Planned | Schema documentation |
-| [authentication-flow.md](authentication-flow.md) | Planned | Auth flow diagrams |
-| [trust-tier-logic.md](trust-tier-logic.md) | Planned | Trust tier progression rules |
+| [database-schema.md](database-schema.md) | Complete | JPA entity mappings, indexes, query patterns |
+| [authentication-flow.md](authentication-flow.md) | Complete | OAuth, password reset, session management |
+| [trust-tier-logic.md](trust-tier-logic.md) | Complete | Auto-promotion logic, manual tier changes |
 
 ## Domain Model
 
