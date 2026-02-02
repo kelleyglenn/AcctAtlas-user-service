@@ -4,7 +4,7 @@
 
 This document describes the database schema for the User Service, focusing on JPA entity mappings and service-specific implementation details.
 
-**Authoritative SQL Schema:** See [05-DataArchitecture.md](../../AcctAtlas-HighLevelDocumentation/05-DataArchitecture.md) for complete SQL definitions, including table creation statements, constraints, and indexes.
+**Authoritative SQL Schema:** See [05-DataArchitecture.md](../../docs/05-DataArchitecture.md) for complete SQL definitions, including table creation statements, constraints, and indexes.
 
 ### Tables Owned by User Service
 
