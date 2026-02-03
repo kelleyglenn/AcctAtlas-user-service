@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/user_service
+    username: user_service
+    password: local_dev
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+app:
+  jwt:
+    access-token-expiry: 15m
+    refresh-token-expiry: 7d
