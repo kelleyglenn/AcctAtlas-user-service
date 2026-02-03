@@ -1,0 +1,173 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot'
+    id 'io.spring.dependency-management'
+    id 'com.google.cloud.tools.jib'
+    id 'com.diffplug.spotless'
+    id 'net.ltgt.errorprone'
+    id 'jacoco'
+    id 'org.openapi.generator'
+}
+
+group = 'com.accountabilityatlas'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Spring Boot starters
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+    // Database
+    runtimeOnly 'org.postgresql:postgresql'
+    implementation 'org.flywaydb:flyway-core'
+    implementation 'org.flywaydb:flyway-database-postgresql'
+
+    // JWT
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // OpenAPI generated code dependencies
+    implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
+    implementation "org.openapitools:jackson-databind-nullable:${jacksonDatabindNullableVersion}"
+    implementation 'jakarta.validation:jakarta.validation-api'
+    implementation 'jakarta.annotation:jakarta.annotation-api'
+
+    // Error Prone
+    errorprone "com.google.errorprone:error_prone_core:${errorProneCoreVersion}"
+
+    // Testing
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation "org.testcontainers:testcontainers:${testcontainersVersion}"
+    testImplementation "org.testcontainers:junit-jupiter:${testcontainersVersion}"
+    testImplementation "org.testcontainers:postgresql:${testcontainersVersion}"
+}
+
+// ---- OpenAPI Generator ----
+openApiGenerate {
+    generatorName = 'spring'
+    inputSpec = "${projectDir}/docs/api-specification.yaml"
+    outputDir = layout.buildDirectory.dir('generated').get().asFile.path
+    apiPackage = 'com.accountabilityatlas.userservice.web.api'
+    modelPackage = 'com.accountabilityatlas.userservice.web.model'
+    configOptions = [
+        interfaceOnly        : 'true',
+        useTags              : 'true',
+        useSpringBoot3       : 'true',
+        documentationProvider: 'none',
+        openApiNullable      : 'true',
+        useJakartaEe         : 'true',
+        skipDefaultInterface : 'true',
+    ]
+}
+
+sourceSets {
+    main {
+        java {
+            srcDir layout.buildDirectory.dir('generated/src/main/java')
+        }
+    }
+}
+
+compileJava.dependsOn tasks.named('openApiGenerate')
+
+// ---- Spotless ----
+spotless {
+    java {
+        targetExclude layout.buildDirectory.files('generated/**')
+        googleJavaFormat()
+        removeUnusedImports()
+        trimTrailingWhitespace()
+        endWithNewline()
+    }
+}
+
+// ---- Error Prone ----
+tasks.withType(JavaCompile).configureEach {
+    options.errorprone {
+        disableWarningsInGeneratedCode = true
+    }
+    if (name == 'compileJava') {
+        options.compilerArgs += ['-Xlint:-processing']
+    }
+}
+
+// ---- JaCoCo ----
+jacocoTestReport {
+    dependsOn test
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                'com/accountabilityatlas/userservice/web/api/**',
+                'com/accountabilityatlas/userservice/web/model/**',
+            ])
+        }))
+    }
+}
+
+jacocoTestCoverageVerification {
+    violationRules {
+        rule {
+            limit {
+                minimum = 0.80
+            }
+        }
+    }
+    afterEvaluate {
+        classDirectories.setFrom(files(classDirectories.files.collect {
+            fileTree(dir: it, exclude: [
+                'com/accountabilityatlas/userservice/web/api/**',
+                'com/accountabilityatlas/userservice/web/model/**',
+            ])
+        }))
+    }
+}
+
+check.dependsOn jacocoTestCoverageVerification
+
+// ---- Jib ----
+jib {
+    from {
+        image = 'eclipse-temurin:21-jre-alpine'
+    }
+    to {
+        image = 'acctatlas/user-service'
+        tags = [version, 'latest']
+    }
+    container {
+        mainClass = 'com.accountabilityatlas.userservice.UserServiceApplication'
+        ports = ['8081']
+        jvmFlags = ['-Djava.security.egd=file:/dev/./urandom']
+    }
+}
+
+// ---- Custom Tasks ----
+tasks.register('composeUp') {
+    group = 'docker'
+    description = 'Build Docker image and start all services via docker-compose'
+    dependsOn 'jibDockerBuild'
+    doLast {
+        exec {
+            commandLine 'docker-compose', '--profile', 'app', 'up', '-d'
+        }
+    }
+}
+
+// ---- Test Config ----
+tasks.named('test') {
+    useJUnitPlatform()
+}
