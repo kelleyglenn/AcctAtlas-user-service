@@ -9,6 +9,7 @@ import com.accountabilityatlas.userservice.repository.UserRepository;
 import com.accountabilityatlas.userservice.repository.UserStatsRepository;
 import java.time.Instant;
 import java.util.Locale;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -45,10 +46,15 @@ public class RegistrationService {
     user.setPasswordHash(passwordEncoder.encode(password));
     user.setDisplayName(displayName);
 
-    user = userRepository.save(user);
+    try {
+      user = userRepository.save(user);
+    } catch (DataIntegrityViolationException e) {
+      throw new EmailAlreadyExistsException();
+    }
 
     UserStats stats = new UserStats();
     stats.setUser(user);
+    stats.setUpdatedAt(Instant.now());
     userStatsRepository.save(stats);
 
     eventPublisher.publish(new UserRegisteredEvent(user.getId(), normalizedEmail, Instant.now()));

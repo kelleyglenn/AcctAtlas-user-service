@@ -8,6 +8,7 @@ import static org.mockito.Mockito.when;
 
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import com.accountabilityatlas.userservice.domain.User;
+import com.accountabilityatlas.userservice.domain.UserStats;
 import com.accountabilityatlas.userservice.event.EventPublisher;
 import com.accountabilityatlas.userservice.event.UserRegisteredEvent;
 import com.accountabilityatlas.userservice.exception.EmailAlreadyExistsException;
@@ -19,6 +20,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 @ExtendWith(MockitoExtension.class)
@@ -78,7 +80,12 @@ class RegistrationServiceTest {
 
     registrationService.register("test@example.com", "SecurePass123", "TestUser");
 
-    verify(userStatsRepository).save(any());
+    ArgumentCaptor<UserStats> statsCaptor = ArgumentCaptor.forClass(UserStats.class);
+    verify(userStatsRepository).save(statsCaptor.capture());
+    assertThat(statsCaptor.getValue().getSubmissionCount()).isEqualTo(0);
+    assertThat(statsCaptor.getValue().getApprovedCount()).isEqualTo(0);
+    assertThat(statsCaptor.getValue().getRejectedCount()).isEqualTo(0);
+    assertThat(statsCaptor.getValue().getUpdatedAt()).isNotNull();
   }
 
   @Test
@@ -87,6 +94,18 @@ class RegistrationServiceTest {
 
     assertThatThrownBy(
             () -> registrationService.register("taken@example.com", "SecurePass123", "TestUser"))
+        .isInstanceOf(EmailAlreadyExistsException.class);
+  }
+
+  @Test
+  void register_throwsWhenConcurrentDuplicateEmail() {
+    when(userRepository.existsByEmail(any())).thenReturn(false);
+    when(passwordEncoder.encode(any())).thenReturn("$2a$12$hashed");
+    when(userRepository.save(any(User.class)))
+        .thenThrow(new DataIntegrityViolationException("unique constraint"));
+
+    assertThatThrownBy(
+            () -> registrationService.register("race@example.com", "SecurePass123", "TestUser"))
         .isInstanceOf(EmailAlreadyExistsException.class);
   }
 }
