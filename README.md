@@ -119,8 +119,10 @@ API interfaces and DTOs are generated from `docs/api-specification.yaml` by the 
 
 | Task | Description |
 |------|-------------|
-| `bootRun` | Run the service locally |
+| `bootRun` | Run the service locally (uses `local` profile) |
 | `test` | Run all tests |
+| `unitTest` | Run unit tests only (no Docker required) |
+| `integrationTest` | Run integration tests only (requires Docker) |
 | `check` | Full quality gate (format + analysis + tests + coverage) |
 | `spotlessApply` | Auto-fix code formatting |
 | `jibDockerBuild` | Build Docker image |
