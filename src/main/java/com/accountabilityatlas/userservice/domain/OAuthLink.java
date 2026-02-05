@@ -13,12 +13,16 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(
     name = "oauth_links",
     schema = "users",
     uniqueConstraints = @UniqueConstraint(columnNames = {"provider", "provider_id"}))
+@Getter
+@Setter
 public class OAuthLink {
 
   @Id
@@ -36,46 +40,11 @@ public class OAuthLink {
   @Column(name = "provider_id", nullable = false)
   private String providerId;
 
+  @Setter(lombok.AccessLevel.NONE)
   @Column(
       name = "sys_period",
       insertable = false,
       updatable = false,
       columnDefinition = "tstzrange")
   private String sysPeriod;
-
-  public UUID getId() {
-    return id;
-  }
-
-  public void setId(UUID id) {
-    this.id = id;
-  }
-
-  public User getUser() {
-    return user;
-  }
-
-  public void setUser(User user) {
-    this.user = user;
-  }
-
-  public OAuthProvider getProvider() {
-    return provider;
-  }
-
-  public void setProvider(OAuthProvider provider) {
-    this.provider = provider;
-  }
-
-  public String getProviderId() {
-    return providerId;
-  }
-
-  public void setProviderId(String providerId) {
-    this.providerId = providerId;
-  }
-
-  public String getSysPeriod() {
-    return sysPeriod;
-  }
 }

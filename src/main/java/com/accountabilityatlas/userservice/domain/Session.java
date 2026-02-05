@@ -8,9 +8,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "sessions", schema = "users")
+@Getter
+@Setter
 public class Session {
 
   @Id
@@ -40,69 +44,5 @@ public class Session {
 
   public boolean isValid(Instant now) {
     return revokedAt == null && expiresAt.isAfter(now);
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public void setId(UUID id) {
-    this.id = id;
-  }
-
-  public UUID getUserId() {
-    return userId;
-  }
-
-  public void setUserId(UUID userId) {
-    this.userId = userId;
-  }
-
-  public String getRefreshTokenHash() {
-    return refreshTokenHash;
-  }
-
-  public void setRefreshTokenHash(String refreshTokenHash) {
-    this.refreshTokenHash = refreshTokenHash;
-  }
-
-  public String getDeviceInfo() {
-    return deviceInfo;
-  }
-
-  public void setDeviceInfo(String deviceInfo) {
-    this.deviceInfo = deviceInfo;
-  }
-
-  public String getIpAddress() {
-    return ipAddress;
-  }
-
-  public void setIpAddress(String ipAddress) {
-    this.ipAddress = ipAddress;
-  }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
-  public void setCreatedAt(Instant createdAt) {
-    this.createdAt = createdAt;
-  }
-
-  public Instant getExpiresAt() {
-    return expiresAt;
-  }
-
-  public void setExpiresAt(Instant expiresAt) {
-    this.expiresAt = expiresAt;
-  }
-
-  public Instant getRevokedAt() {
-    return revokedAt;
-  }
-
-  public void setRevokedAt(Instant revokedAt) {
-    this.revokedAt = revokedAt;
   }
 }

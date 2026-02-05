@@ -10,9 +10,13 @@ import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "user_stats", schema = "users")
+@Getter
+@Setter
 public class UserStats {
 
   @Id private UUID userId;
@@ -33,52 +37,4 @@ public class UserStats {
 
   @Column(name = "updated_at", nullable = false)
   private Instant updatedAt;
-
-  public UUID getUserId() {
-    return userId;
-  }
-
-  public void setUserId(UUID userId) {
-    this.userId = userId;
-  }
-
-  public User getUser() {
-    return user;
-  }
-
-  public void setUser(User user) {
-    this.user = user;
-  }
-
-  public int getSubmissionCount() {
-    return submissionCount;
-  }
-
-  public void setSubmissionCount(int submissionCount) {
-    this.submissionCount = submissionCount;
-  }
-
-  public int getApprovedCount() {
-    return approvedCount;
-  }
-
-  public void setApprovedCount(int approvedCount) {
-    this.approvedCount = approvedCount;
-  }
-
-  public int getRejectedCount() {
-    return rejectedCount;
-  }
-
-  public void setRejectedCount(int rejectedCount) {
-    this.rejectedCount = rejectedCount;
-  }
-
-  public Instant getUpdatedAt() {
-    return updatedAt;
-  }
-
-  public void setUpdatedAt(Instant updatedAt) {
-    this.updatedAt = updatedAt;
-  }
 }

@@ -8,9 +8,13 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 
 @Entity
 @Table(name = "password_resets", schema = "users")
+@Getter
+@Setter
 public class PasswordReset {
 
   @Id
@@ -34,53 +38,5 @@ public class PasswordReset {
 
   public boolean isValid(Instant now) {
     return usedAt == null && expiresAt.isAfter(now);
-  }
-
-  public UUID getId() {
-    return id;
-  }
-
-  public void setId(UUID id) {
-    this.id = id;
-  }
-
-  public UUID getUserId() {
-    return userId;
-  }
-
-  public void setUserId(UUID userId) {
-    this.userId = userId;
-  }
-
-  public String getTokenHash() {
-    return tokenHash;
-  }
-
-  public void setTokenHash(String tokenHash) {
-    this.tokenHash = tokenHash;
-  }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
-  public void setCreatedAt(Instant createdAt) {
-    this.createdAt = createdAt;
-  }
-
-  public Instant getExpiresAt() {
-    return expiresAt;
-  }
-
-  public void setExpiresAt(Instant expiresAt) {
-    this.expiresAt = expiresAt;
-  }
-
-  public Instant getUsedAt() {
-    return usedAt;
-  }
-
-  public void setUsedAt(Instant usedAt) {
-    this.usedAt = usedAt;
   }
 }

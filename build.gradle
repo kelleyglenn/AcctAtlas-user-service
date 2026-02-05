@@ -46,6 +46,12 @@ dependencies {
     implementation 'jakarta.validation:jakarta.validation-api'
     implementation 'jakarta.annotation:jakarta.annotation-api'
 
+    // Lombok
+    compileOnly "org.projectlombok:lombok:${lombokVersion}"
+    annotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+    testCompileOnly "org.projectlombok:lombok:${lombokVersion}"
+    testAnnotationProcessor "org.projectlombok:lombok:${lombokVersion}"
+
     // Error Prone
     errorprone "com.google.errorprone:error_prone_core:${errorProneCoreVersion}"
 

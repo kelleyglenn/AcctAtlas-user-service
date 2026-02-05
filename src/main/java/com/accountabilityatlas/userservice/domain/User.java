@@ -16,10 +16,14 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import lombok.Getter;
+import lombok.Setter;
 import org.hibernate.annotations.Formula;
 
 @Entity
 @Table(name = "users", schema = "users")
+@Getter
+@Setter
 public class User {
 
   @Id
@@ -45,6 +49,7 @@ public class User {
   @Column(name = "trust_tier", nullable = false, length = 20)
   private TrustTier trustTier = TrustTier.NEW;
 
+  @Setter(lombok.AccessLevel.NONE)
   @Column(
       name = "sys_period",
       insertable = false,
@@ -52,6 +57,7 @@ public class User {
       columnDefinition = "tstzrange")
   private String sysPeriod;
 
+  @Setter(lombok.AccessLevel.NONE)
   @Formula("lower(sys_period)")
   private Instant createdAt;
 
@@ -60,84 +66,4 @@ public class User {
 
   @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
   private List<OAuthLink> oauthLinks = new ArrayList<>();
-
-  public UUID getId() {
-    return id;
-  }
-
-  public void setId(UUID id) {
-    this.id = id;
-  }
-
-  public String getEmail() {
-    return email;
-  }
-
-  public void setEmail(String email) {
-    this.email = email;
-  }
-
-  public boolean isEmailVerified() {
-    return emailVerified;
-  }
-
-  public void setEmailVerified(boolean emailVerified) {
-    this.emailVerified = emailVerified;
-  }
-
-  public String getPasswordHash() {
-    return passwordHash;
-  }
-
-  public void setPasswordHash(String passwordHash) {
-    this.passwordHash = passwordHash;
-  }
-
-  public String getDisplayName() {
-    return displayName;
-  }
-
-  public void setDisplayName(String displayName) {
-    this.displayName = displayName;
-  }
-
-  public String getAvatarUrl() {
-    return avatarUrl;
-  }
-
-  public void setAvatarUrl(String avatarUrl) {
-    this.avatarUrl = avatarUrl;
-  }
-
-  public TrustTier getTrustTier() {
-    return trustTier;
-  }
-
-  public void setTrustTier(TrustTier trustTier) {
-    this.trustTier = trustTier;
-  }
-
-  public String getSysPeriod() {
-    return sysPeriod;
-  }
-
-  public Instant getCreatedAt() {
-    return createdAt;
-  }
-
-  public UserStats getStats() {
-    return stats;
-  }
-
-  public void setStats(UserStats stats) {
-    this.stats = stats;
-  }
-
-  public List<OAuthLink> getOauthLinks() {
-    return oauthLinks;
-  }
-
-  public void setOauthLinks(List<OAuthLink> oauthLinks) {
-    this.oauthLinks = oauthLinks;
-  }
 }
