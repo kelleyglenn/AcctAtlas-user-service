@@ -118,6 +118,7 @@ jacocoTestReport {
             fileTree(dir: it, exclude: [
                 'com/accountabilityatlas/userservice/web/api/**',
                 'com/accountabilityatlas/userservice/web/model/**',
+                'org/openapitools/configuration/**',
             ])
         }))
     }
@@ -138,6 +139,7 @@ jacocoTestCoverageVerification {
             fileTree(dir: it, exclude: [
                 'com/accountabilityatlas/userservice/web/api/**',
                 'com/accountabilityatlas/userservice/web/model/**',
+                'org/openapitools/configuration/**',
             ])
         }))
     }
