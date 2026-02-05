@@ -71,7 +71,7 @@ Session (non-temporal - transient, high churn)
 ├── userId: UUID
 ├── refreshTokenHash: String
 ├── deviceInfo: String (nullable)
-├── ipAddress: InetAddress (nullable)
+├── ipAddress: String (nullable, max 45 chars for IPv6)
 ├── createdAt: Instant
 ├── expiresAt: Instant
 └── revokedAt: Instant (nullable)

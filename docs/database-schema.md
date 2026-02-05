@@ -24,11 +24,15 @@ The service uses Spring Data JPA with custom handling for PostgreSQL's `tstzrang
 
 ## JPA Entity Mappings
 
+All entities use Lombok `@Getter` and `@Setter` annotations to reduce boilerplate. Read-only fields use `@Setter(AccessLevel.NONE)`.
+
 ### User Entity
 
 ```java
 @Entity
 @Table(name = "users", schema = "users")
+@Getter
+@Setter
 public class User {
 
     @Id
@@ -55,11 +59,13 @@ public class User {
     private TrustTier trustTier = TrustTier.NEW;
 
     // Managed by PostgreSQL trigger - read-only in JPA
-    @Column(name = "sys_period", insertable = false, updatable = false)
-    @Type(TstzRangeType.class)
-    private TstzRange sysPeriod;
+    @Setter(AccessLevel.NONE)
+    @Column(name = "sys_period", insertable = false, updatable = false,
+            columnDefinition = "tstzrange")
+    private String sysPeriod;
 
     // Derived from sys_period lower bound
+    @Setter(AccessLevel.NONE)
     @Formula("lower(sys_period)")
     private Instant createdAt;
 
@@ -67,12 +73,13 @@ public class User {
     private UserStats stats;
 
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, fetch = FetchType.LAZY)
-    private List<OAuthLink> oauthLinks;
+    private List<OAuthLink> oauthLinks = new ArrayList<>();
 }
 ```
 
 **Notes:**
 - `sysPeriod` is read-only; PostgreSQL's `versioning` trigger manages it automatically
+- `sysPeriod` uses `String` type since the value is never accessed in Java (only used for `@Formula`)
 - `createdAt` uses `@Formula` to extract the lower bound of `sys_period` without storing it separately
 - `passwordHash` is nullable to support OAuth-only accounts
 
@@ -92,6 +99,8 @@ public enum TrustTier {
 ```java
 @Entity
 @Table(name = "user_stats", schema = "users")
+@Getter
+@Setter
 public class UserStats {
 
     @Id
@@ -111,7 +120,6 @@ public class UserStats {
     @Column(name = "rejected_count", nullable = false)
     private int rejectedCount = 0;
 
-    @UpdateTimestamp
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 }
@@ -119,7 +127,6 @@ public class UserStats {
 
 **Notes:**
 - Uses `@MapsId` for shared primary key with User
-- `@UpdateTimestamp` automatically sets `updatedAt` on every save
 - Non-temporal: counters change frequently, history would explode storage
 
 ### OAuthLink Entity
@@ -128,6 +135,8 @@ public class UserStats {
 @Entity
 @Table(name = "oauth_links", schema = "users",
     uniqueConstraints = @UniqueConstraint(columnNames = {"provider", "provider_id"}))
+@Getter
+@Setter
 public class OAuthLink {
 
     @Id
@@ -145,12 +154,10 @@ public class OAuthLink {
     @Column(name = "provider_id", nullable = false)
     private String providerId;
 
-    @Column(name = "sys_period", insertable = false, updatable = false)
-    @Type(TstzRangeType.class)
-    private TstzRange sysPeriod;
-
-    @Formula("lower(sys_period)")
-    private Instant linkedAt;
+    @Setter(AccessLevel.NONE)
+    @Column(name = "sys_period", insertable = false, updatable = false,
+            columnDefinition = "tstzrange")
+    private String sysPeriod;
 }
 ```
 
@@ -168,6 +175,8 @@ public enum OAuthProvider {
 ```java
 @Entity
 @Table(name = "sessions", schema = "users")
+@Getter
+@Setter
 public class Session {
 
     @Id
@@ -184,8 +193,7 @@ public class Session {
     private String deviceInfo;
 
     @Column(name = "ip_address")
-    @Type(InetAddressType.class)
-    private InetAddress ipAddress;
+    private String ipAddress;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt = Instant.now();
@@ -204,7 +212,7 @@ public class Session {
 
 **Notes:**
 - Non-temporal: sessions are transient with high churn
-- `ipAddress` uses custom Hibernate type for PostgreSQL's `INET` column type
+- `ipAddress` stored as String (supports both IPv4 and IPv6, max 45 chars)
 - `isValid()` helper encapsulates the validity check logic
 
 ### PasswordReset Entity
@@ -212,6 +220,8 @@ public class Session {
 ```java
 @Entity
 @Table(name = "password_resets", schema = "users")
+@Getter
+@Setter
 public class PasswordReset {
 
     @Id

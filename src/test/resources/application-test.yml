@@ -1,0 +1,15 @@
+spring:
+  flyway:
+    enabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+
+app:
+  jwt:
+    access-token-expiry: 15m
+    refresh-token-expiry: 7d
+
+logging:
+  level:
+    com.accountabilityatlas: DEBUG
