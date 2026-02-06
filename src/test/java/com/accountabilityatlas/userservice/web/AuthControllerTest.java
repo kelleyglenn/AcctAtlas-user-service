@@ -7,6 +7,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter;
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import com.accountabilityatlas.userservice.exception.EmailAlreadyExistsException;
 import com.accountabilityatlas.userservice.exception.GlobalExceptionHandler;
@@ -32,6 +33,10 @@ class AuthControllerTest {
 
   @MockitoBean private RegistrationService registrationService;
   @MockitoBean private AuthenticationService authenticationService;
+
+  @SuppressWarnings("UnusedVariable")
+  @MockitoBean
+  private JwtAuthenticationFilter jwtAuthenticationFilter;
 
   @Test
   void register_returns201OnSuccess() throws Exception {
