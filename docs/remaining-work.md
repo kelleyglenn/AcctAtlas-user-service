@@ -16,14 +16,14 @@ These endpoints have generated OpenAPI interfaces but no implementation beyond a
 
 ## Users and Admin API
 
-Generated interfaces exist (`UsersApi`, `AdminApi`) but no controllers implement them.
+`UsersController` implements `UsersApi`. `AdminApi` has no controller yet.
 
-| Endpoint | Description |
-|----------|-------------|
-| `GET /users/me` | Get current user profile |
-| `PATCH /users/me` | Update own profile |
-| `GET /users/{id}` | Get public user profile |
-| `PUT /users/{id}/trust-tier` | Admin: update user trust tier |
+| Endpoint | Status | Description |
+|----------|--------|-------------|
+| `GET /users/me` | **Done** | Get current user profile |
+| `PUT /users/me` | Stub (501) | Update own profile |
+| `GET /users/{id}` | Stub (501) | Get public user profile |
+| `PUT /users/{id}/trust-tier` | Not started | Admin: update user trust tier |
 
 ## Temporary Measures
 
@@ -42,4 +42,10 @@ Generated interfaces exist (`UsersApi`, `AdminApi`) but no controllers implement
 | Email verification flow | `docs/authentication-flow.md` |
 | Trust tier auto-promotion (NEW -> TRUSTED) | `docs/trust-tier-logic.md` |
 | Domain event publishing to SQS | Replace `LoggingEventPublisher` with SQS implementation |
-| JWT validation filter for protected endpoints | `SecurityConfig` currently permits all requests |
+
+## Recently Completed
+
+| Feature | PR | Notes |
+|---------|-----|-------|
+| JWT validation filter | #4 | `JwtAuthenticationFilter` validates Bearer tokens; `SecurityConfig` protects `/users/**` |
+| `GET /users/me` endpoint | #4 | `UsersController` returns authenticated user's profile |
