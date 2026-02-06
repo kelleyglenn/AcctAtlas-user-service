@@ -41,4 +41,12 @@ public class GlobalExceptionHandler {
     error.setMessage("Request validation failed");
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
+
+  @ExceptionHandler(UserNotFoundException.class)
+  public ResponseEntity<Error> handleUserNotFound(UserNotFoundException ex) {
+    Error error = new Error();
+    error.setCode("USER_NOT_FOUND");
+    error.setMessage(ex.getMessage());
+    return ResponseEntity.status(HttpStatus.NOT_FOUND).body(error);
+  }
 }

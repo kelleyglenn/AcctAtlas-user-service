@@ -1,9 +1,11 @@
 package com.accountabilityatlas.userservice.integration;
 
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import com.jayway.jsonpath.JsonPath;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -12,6 +14,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -138,6 +141,49 @@ class AuthIntegrationTest {
                       "password": "WrongPassword"
                     }
                     """))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void registerLoginAndGetMe_fullFlow() throws Exception {
+    // Register
+    MvcResult registerResult =
+        mockMvc
+            .perform(
+                post("/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "fullflow@example.com",
+                          "password": "SecurePass123",
+                          "displayName": "FullFlowUser"
+                        }
+                        """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    String accessToken =
+        JsonPath.read(registerResult.getResponse().getContentAsString(), "$.tokens.accessToken");
+
+    // Get current user with token
+    mockMvc
+        .perform(get("/users/me").header("Authorization", "Bearer " + accessToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value("fullflow@example.com"))
+        .andExpect(jsonPath("$.displayName").value("FullFlowUser"))
+        .andExpect(jsonPath("$.trustTier").value("NEW"));
+  }
+
+  @Test
+  void getUsersMe_withoutToken_returns401() throws Exception {
+    mockMvc.perform(get("/users/me")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void getUsersMe_withInvalidToken_returns401() throws Exception {
+    mockMvc
+        .perform(get("/users/me").header("Authorization", "Bearer invalid-token"))
         .andExpect(status().isUnauthorized());
   }
 }
