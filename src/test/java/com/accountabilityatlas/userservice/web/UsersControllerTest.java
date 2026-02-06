@@ -33,7 +33,10 @@ class UsersControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private UserService userService;
-  @MockitoBean private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+  @SuppressWarnings("UnusedVariable")
+  @MockitoBean
+  private JwtAuthenticationFilter jwtAuthenticationFilter;
 
   @Test
   void getCurrentUser_returns200WithUserData() throws Exception {

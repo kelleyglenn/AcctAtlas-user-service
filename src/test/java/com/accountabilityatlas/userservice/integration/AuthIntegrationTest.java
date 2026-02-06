@@ -25,6 +25,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class AuthIntegrationTest {
 
   @Container
+  @SuppressWarnings("resource")
   static PostgreSQLContainer<?> postgres =
       new PostgreSQLContainer<>("postgres:17-alpine")
           .withDatabaseName("user_service")

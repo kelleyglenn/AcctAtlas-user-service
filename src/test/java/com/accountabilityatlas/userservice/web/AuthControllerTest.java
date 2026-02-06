@@ -33,7 +33,10 @@ class AuthControllerTest {
 
   @MockitoBean private RegistrationService registrationService;
   @MockitoBean private AuthenticationService authenticationService;
-  @MockitoBean private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+  @SuppressWarnings("UnusedVariable")
+  @MockitoBean
+  private JwtAuthenticationFilter jwtAuthenticationFilter;
 
   @Test
   void register_returns201OnSuccess() throws Exception {
