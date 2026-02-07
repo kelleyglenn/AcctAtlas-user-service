@@ -28,7 +28,9 @@ public class SecurityConfig {
         .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
         .authorizeHttpRequests(
             auth ->
-                auth.requestMatchers("/auth/**")
+                auth.requestMatchers("/actuator/**")
+                    .permitAll()
+                    .requestMatchers("/auth/**")
                     .permitAll()
                     .requestMatchers("/users/**")
                     .authenticated()
