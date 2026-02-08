@@ -78,7 +78,7 @@ public class User {
 ```
 
 **Notes:**
-- `sysPeriod` is read-only; PostgreSQL's `versioning` trigger manages it automatically
+- `sysPeriod` is read-only; a custom PostgreSQL trigger (`users.versioning_trigger_fn`) manages it automatically
 - `sysPeriod` uses `String` type since the value is never accessed in Java (only used for `@Formula`)
 - `createdAt` uses `@Formula` to extract the lower bound of `sys_period` without storing it separately
 - `passwordHash` is nullable to support OAuth-only accounts
@@ -268,6 +268,50 @@ public class PasswordReset {
 **Storage implications:** Temporal tables roughly double write I/O and storage for tracked tables. History tables are append-only and grow indefinitely until archived.
 
 **Accessing history:** History tables (`users_history`, `oauth_links_history`) are for manual SQL auditing only. The application does not expose history queries through APIs or services.
+
+### Versioning Implementation
+
+The service uses a custom versioning trigger function rather than the `temporal_tables` extension:
+
+```sql
+CREATE OR REPLACE FUNCTION users.versioning_trigger_fn()
+RETURNS TRIGGER AS $$
+DECLARE
+    history_table TEXT;
+BEGIN
+    history_table := TG_ARGV[0];
+
+    IF TG_OP = 'UPDATE' OR TG_OP = 'DELETE' THEN
+        OLD.sys_period := tstzrange(lower(OLD.sys_period), NOW());
+        EXECUTE format('INSERT INTO %s SELECT $1.*', history_table) USING OLD;
+    END IF;
+
+    IF TG_OP = 'UPDATE' THEN
+        NEW.sys_period := tstzrange(NOW(), NULL);
+        RETURN NEW;
+    END IF;
+
+    IF TG_OP = 'INSERT' THEN
+        NEW.sys_period := tstzrange(NOW(), NULL);
+        RETURN NEW;
+    END IF;
+
+    RETURN NULL;
+END;
+$$ LANGUAGE plpgsql;
+```
+
+This function is applied to temporal tables via triggers:
+
+```sql
+CREATE TRIGGER users_versioning_trigger
+    BEFORE INSERT OR UPDATE OR DELETE ON users.users
+    FOR EACH ROW EXECUTE FUNCTION users.versioning_trigger_fn('users.users_history');
+
+CREATE TRIGGER oauth_links_versioning_trigger
+    BEFORE INSERT OR UPDATE OR DELETE ON users.oauth_links
+    FOR EACH ROW EXECUTE FUNCTION users.versioning_trigger_fn('users.oauth_links_history');
+```
 
 ---
 

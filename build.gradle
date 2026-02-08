@@ -169,15 +169,17 @@ jib {
 }
 
 // ---- Custom Tasks ----
-tasks.register('composeUp') {
+tasks.register('composeUp', Exec) {
     group = 'docker'
     description = 'Build Docker image and start all services via docker-compose'
     dependsOn 'jibDockerBuild'
-    doLast {
-        exec {
-            commandLine 'docker-compose', '--profile', 'app', 'up', '-d'
-        }
-    }
+    commandLine 'docker-compose', '--profile', 'app', 'up', '-d'
+}
+
+tasks.register('composeDown', Exec) {
+    group = 'docker'
+    description = 'Stop all services via docker-compose'
+    commandLine 'docker-compose', '--profile', 'app', 'down'
 }
 
 // ---- Test Config ----

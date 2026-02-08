@@ -48,6 +48,27 @@ gradlew.bat bootRun
 
 The service starts on **http://localhost:8081**.
 
+### Quick API test
+
+```bash
+# Health check
+curl http://localhost:8081/actuator/health
+
+# Register a new user
+curl -X POST http://localhost:8081/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"SecurePass123","displayName":"TestUser"}'
+
+# Login (save the accessToken from the response)
+curl -X POST http://localhost:8081/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"SecurePass123"}'
+
+# Get current user profile (replace TOKEN with accessToken from login)
+curl http://localhost:8081/users/me \
+  -H "Authorization: Bearer TOKEN"
+```
+
 ### Run tests
 
 ```bash
@@ -127,6 +148,7 @@ API interfaces and DTOs are generated from `docs/api-specification.yaml` by the 
 | `spotlessApply` | Auto-fix code formatting |
 | `jibDockerBuild` | Build Docker image |
 | `composeUp` | Build image + docker-compose up |
+| `composeDown` | Stop docker-compose services |
 
 ## Documentation
 
