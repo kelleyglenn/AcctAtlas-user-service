@@ -22,6 +22,19 @@ spring:
     default-property-inclusion: non_null
     serialization:
       write-dates-as-timestamps: false
+  cloud:
+    aws:
+      region:
+        static: ${AWS_REGION:us-east-1}
+      credentials:
+        access-key: ${AWS_ACCESS_KEY_ID:test}
+        secret-key: ${AWS_SECRET_ACCESS_KEY:test}
+    stream:
+      bindings:
+        userEvent-out-0:
+          destination: user-events
+      function:
+        definition: ""
 
 management:
   endpoints:
