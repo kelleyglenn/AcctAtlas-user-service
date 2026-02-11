@@ -21,12 +21,12 @@ public class UserService {
 
   @Transactional(readOnly = true)
   public User getUserById(UUID id) {
-    return userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(id));
+    return getUserByIdInternal(id);
   }
 
   @Transactional
   public User updateTrustTier(UUID id, TrustTier newTier, String reason) {
-    User user = getUserById(id);
+    User user = getUserByIdInternal(id);
     TrustTier oldTier = user.getTrustTier();
     user.setTrustTier(newTier);
     User saved = userRepository.save(user);
@@ -34,5 +34,9 @@ public class UserService {
     log.info("Updated user {} trust tier: {} -> {} (reason: {})", id, oldTier, newTier, reason);
 
     return saved;
+  }
+
+  private User getUserByIdInternal(UUID id) {
+    return userRepository.findById(id).orElseThrow(() -> new UserNotFoundException(id));
   }
 }
