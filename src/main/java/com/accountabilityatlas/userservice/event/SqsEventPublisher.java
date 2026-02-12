@@ -1,13 +1,14 @@
 package com.accountabilityatlas.userservice.event;
 
+import io.awspring.cloud.sqs.operations.SqsTemplate;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 /**
- * EventPublisher implementation that publishes events to SQS via Spring Cloud Stream.
+ * EventPublisher implementation that publishes events to SQS via AWS Spring SqsTemplate.
  *
  * <p>This replaces the LoggingEventPublisher for production use.
  */
@@ -17,18 +18,20 @@ import org.springframework.stereotype.Component;
 @Slf4j
 public class SqsEventPublisher implements EventPublisher {
 
-  private static final String USER_EVENT_BINDING = "userEvent-out-0";
+  private final SqsTemplate sqsTemplate;
 
-  private final StreamBridge streamBridge;
+  @Value("${app.sqs.user-events-queue:user-events}")
+  private String userEventsQueue;
 
   @Override
   public void publish(DomainEvent event) {
-    log.info("Publishing {} event to SQS: {}", event.eventType(), event);
-    boolean sent = streamBridge.send(USER_EVENT_BINDING, event);
-    if (sent) {
+    log.info("Publishing {} event to SQS queue {}: {}", event.eventType(), userEventsQueue, event);
+    try {
+      sqsTemplate.send(userEventsQueue, event);
       log.debug("Published {} event successfully", event.eventType());
-    } else {
-      log.error("Failed to publish {} event: {}", event.eventType(), event);
+    } catch (Exception e) {
+      log.error("Failed to publish {} event: {}", event.eventType(), e.getMessage(), e);
+      throw e;
     }
   }
 }
