@@ -1,7 +1,10 @@
 package com.accountabilityatlas.userservice.event;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import io.awspring.cloud.sqs.operations.SqsTemplate;
@@ -54,5 +57,19 @@ class SqsEventPublisherTest {
 
     // Assert
     verify(sqsTemplate).send(eq(USER_EVENTS_QUEUE), eq(event));
+  }
+
+  @Test
+  void publish_sqsFailure_rethrowsException() {
+    // Arrange
+    ReflectionTestUtils.setField(publisher, "userEventsQueue", USER_EVENTS_QUEUE);
+    UserRegisteredEvent event =
+        new UserRegisteredEvent(UUID.randomUUID(), "test@example.com", Instant.now());
+
+    RuntimeException sqsException = new RuntimeException("SQS connection failed");
+    when(sqsTemplate.send(eq(USER_EVENTS_QUEUE), any(DomainEvent.class))).thenThrow(sqsException);
+
+    // Act & Assert
+    assertThatThrownBy(() -> publisher.publish(event)).isSameAs(sqsException);
   }
 }
