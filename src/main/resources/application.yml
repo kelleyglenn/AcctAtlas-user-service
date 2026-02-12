@@ -29,12 +29,6 @@ spring:
       credentials:
         access-key: ${AWS_ACCESS_KEY_ID:test}
         secret-key: ${AWS_SECRET_ACCESS_KEY:test}
-    stream:
-      bindings:
-        userEvent-out-0:
-          destination: user-events
-      function:
-        definition: ""
 
 management:
   endpoints:
@@ -49,3 +43,7 @@ logging:
   level:
     com.accountabilityatlas: DEBUG
     org.springframework.security: DEBUG
+
+app:
+  sqs:
+    user-events-queue: user-events

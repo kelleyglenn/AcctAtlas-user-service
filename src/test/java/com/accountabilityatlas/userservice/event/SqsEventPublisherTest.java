@@ -1,35 +1,35 @@
 package com.accountabilityatlas.userservice.event;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.accountabilityatlas.userservice.domain.TrustTier;
+import io.awspring.cloud.sqs.operations.SqsTemplate;
 import java.time.Instant;
 import java.util.UUID;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.cloud.stream.function.StreamBridge;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class SqsEventPublisherTest {
 
-  @Mock private StreamBridge streamBridge;
+  private static final String USER_EVENTS_QUEUE = "user-events";
 
-  private SqsEventPublisher publisher;
+  @Mock private SqsTemplate sqsTemplate;
 
-  @BeforeEach
-  void setUp() {
-    publisher = new SqsEventPublisher(streamBridge);
-  }
+  @InjectMocks private SqsEventPublisher publisher;
 
   @Test
-  void publish_userTrustTierChangedEvent_sendsToStreamBridge() {
+  void publish_userTrustTierChangedEvent_sendsToSqs() {
     // Arrange
+    ReflectionTestUtils.setField(publisher, "userEventsQueue", USER_EVENTS_QUEUE);
     UserTrustTierChangedEvent event =
         new UserTrustTierChangedEvent(
             UUID.randomUUID(),
@@ -37,26 +37,39 @@ class SqsEventPublisherTest {
             TrustTier.TRUSTED,
             UserTrustTierChangedEvent.ChangeReason.AUTO_PROMOTION,
             Instant.now());
-    when(streamBridge.send(eq("userEvent-out-0"), any())).thenReturn(true);
 
     // Act
     publisher.publish(event);
 
     // Assert
-    verify(streamBridge).send(eq("userEvent-out-0"), eq(event));
+    verify(sqsTemplate).send(eq(USER_EVENTS_QUEUE), eq(event));
   }
 
   @Test
-  void publish_userRegisteredEvent_sendsToStreamBridge() {
+  void publish_userRegisteredEvent_sendsToSqs() {
     // Arrange
+    ReflectionTestUtils.setField(publisher, "userEventsQueue", USER_EVENTS_QUEUE);
     UserRegisteredEvent event =
         new UserRegisteredEvent(UUID.randomUUID(), "test@example.com", Instant.now());
-    when(streamBridge.send(eq("userEvent-out-0"), any())).thenReturn(true);
 
     // Act
     publisher.publish(event);
 
     // Assert
-    verify(streamBridge).send(eq("userEvent-out-0"), eq(event));
+    verify(sqsTemplate).send(eq(USER_EVENTS_QUEUE), eq(event));
+  }
+
+  @Test
+  void publish_sqsFailure_rethrowsException() {
+    // Arrange
+    ReflectionTestUtils.setField(publisher, "userEventsQueue", USER_EVENTS_QUEUE);
+    UserRegisteredEvent event =
+        new UserRegisteredEvent(UUID.randomUUID(), "test@example.com", Instant.now());
+
+    RuntimeException sqsException = new RuntimeException("SQS connection failed");
+    when(sqsTemplate.send(eq(USER_EVENTS_QUEUE), any(DomainEvent.class))).thenThrow(sqsException);
+
+    // Act & Assert
+    assertThatThrownBy(() -> publisher.publish(event)).isSameAs(sqsException);
   }
 }
