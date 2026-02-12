@@ -7,7 +7,7 @@ User identity and access management service for AccountabilityAtlas. Handles reg
 - **Docker Desktop** (for PostgreSQL and Redis)
 - **Git**
 
-JDK 21 is managed automatically by the Gradle wrapper via [Foojay Toolchain](https://github.com/gradle/foojay-toolchain) -- no manual JDK installation required.
+JDK 21 is managed automatically by the Gradle wrapper via [Foojay Toolchain](https://github.com/gradle/foojay-toolchains) -- no manual JDK installation required.
 
 ## Clone and Build
 
