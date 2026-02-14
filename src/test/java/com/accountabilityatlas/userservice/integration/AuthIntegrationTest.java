@@ -1,7 +1,9 @@
 package com.accountabilityatlas.userservice.integration;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -190,5 +192,38 @@ class AuthIntegrationTest {
     mockMvc
         .perform(get("/users/me").header("Authorization", "Bearer invalid-token"))
         .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void jwksEndpoint_returnsValidJwkSet() throws Exception {
+    mockMvc
+        .perform(get("/.well-known/jwks.json"))
+        .andExpect(status().isOk())
+        .andExpect(content().contentType(MediaType.APPLICATION_JSON))
+        .andExpect(jsonPath("$.keys").isArray())
+        .andExpect(jsonPath("$.keys.length()").value(1))
+        .andExpect(jsonPath("$.keys[0].kty").value("RSA"))
+        .andExpect(jsonPath("$.keys[0].kid").value("user-service-key-1"))
+        .andExpect(jsonPath("$.keys[0].n").exists())
+        .andExpect(jsonPath("$.keys[0].e").exists());
+  }
+
+  @Test
+  void jwksEndpoint_isPublicWithoutAuthentication() throws Exception {
+    mockMvc.perform(get("/.well-known/jwks.json")).andExpect(status().isOk());
+  }
+
+  @Test
+  void jwksEndpoint_returnsConsistentKeys() throws Exception {
+    MvcResult first =
+        mockMvc.perform(get("/.well-known/jwks.json")).andExpect(status().isOk()).andReturn();
+
+    MvcResult second =
+        mockMvc.perform(get("/.well-known/jwks.json")).andExpect(status().isOk()).andReturn();
+
+    String firstBody = first.getResponse().getContentAsString();
+    String secondBody = second.getResponse().getContentAsString();
+
+    assertThat(firstBody).isEqualTo(secondBody);
   }
 }
