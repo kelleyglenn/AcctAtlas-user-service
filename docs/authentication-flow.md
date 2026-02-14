@@ -25,7 +25,7 @@ The User Service implements authentication using stateless JWTs for access contr
 ```
 
 - Signed with RS256 (asymmetric keys)
-- Public key available for other services to validate tokens
+- Public key exposed at `GET /.well-known/jwks.json` ([JWKS endpoint](technical.md#jwks-endpoint)) for downstream services to validate tokens
 - `sessionId` enables server-side revocation checks when needed
 
 ### Security Principles
