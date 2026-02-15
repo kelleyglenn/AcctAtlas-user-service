@@ -2,12 +2,14 @@ package com.accountabilityatlas.userservice.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter;
+import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import com.accountabilityatlas.userservice.exception.EmailAlreadyExistsException;
 import com.accountabilityatlas.userservice.exception.GlobalExceptionHandler;
@@ -15,12 +17,16 @@ import com.accountabilityatlas.userservice.exception.InvalidCredentialsException
 import com.accountabilityatlas.userservice.service.AuthResult;
 import com.accountabilityatlas.userservice.service.AuthenticationService;
 import com.accountabilityatlas.userservice.service.RegistrationService;
+import java.util.Collections;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -123,6 +129,42 @@ class AuthControllerTest {
                     """))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+  }
+
+  @Test
+  void logout_returns204OnSuccess() throws Exception {
+    // Arrange
+    UUID sessionId = UUID.randomUUID();
+    setAuthenticationContext(sessionId);
+
+    // Act & Assert
+    mockMvc.perform(post("/auth/logout")).andExpect(status().isNoContent());
+
+    verify(authenticationService).logout(sessionId);
+  }
+
+  @Test
+  void logout_delegatesToAuthenticationService() throws Exception {
+    // Arrange
+    UUID sessionId = UUID.randomUUID();
+    setAuthenticationContext(sessionId);
+
+    // Act
+    mockMvc.perform(post("/auth/logout")).andExpect(status().isNoContent());
+
+    // Assert
+    verify(authenticationService).logout(sessionId);
+  }
+
+  private void setAuthenticationContext(UUID sessionId) {
+    JwtAuthenticationToken authentication =
+        new JwtAuthenticationToken(
+            UUID.randomUUID(),
+            "test@example.com",
+            TrustTier.NEW,
+            sessionId,
+            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+    SecurityContextHolder.getContext().setAuthentication(authentication);
   }
 
   private com.accountabilityatlas.userservice.domain.User buildDomainUser() {

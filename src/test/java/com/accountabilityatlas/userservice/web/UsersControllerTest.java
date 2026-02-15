@@ -51,6 +51,7 @@ class UsersControllerTest {
             userId,
             "test@example.com",
             TrustTier.NEW,
+            UUID.randomUUID(),
             Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
     SecurityContextHolder.getContext().setAuthentication(auth);
 
@@ -73,6 +74,7 @@ class UsersControllerTest {
             userId,
             "test@example.com",
             TrustTier.NEW,
+            UUID.randomUUID(),
             Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
     SecurityContextHolder.getContext().setAuthentication(auth);
 

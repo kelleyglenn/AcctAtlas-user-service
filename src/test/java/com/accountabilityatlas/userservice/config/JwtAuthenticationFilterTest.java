@@ -42,6 +42,7 @@ class JwtAuthenticationFilterTest {
   @Test
   void doFilterInternal_withValidToken_setsAuthentication() throws Exception {
     UUID userId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
     String email = "test@example.com";
     String token = "valid-token";
 
@@ -49,6 +50,7 @@ class JwtAuthenticationFilterTest {
     when(claims.getSubject()).thenReturn(userId.toString());
     when(claims.get("email", String.class)).thenReturn(email);
     when(claims.get("trustTier", String.class)).thenReturn("NEW");
+    when(claims.get("sessionId", String.class)).thenReturn(sessionId.toString());
 
     request.addHeader("Authorization", "Bearer " + token);
     when(tokenService.parseAccessToken(token)).thenReturn(claims);
@@ -62,6 +64,7 @@ class JwtAuthenticationFilterTest {
     assertThat(auth.getUserId()).isEqualTo(userId);
     assertThat(auth.getEmail()).isEqualTo(email);
     assertThat(auth.getTrustTier()).isEqualTo(TrustTier.NEW);
+    assertThat(auth.getSessionId()).isEqualTo(sessionId);
   }
 
   @Test

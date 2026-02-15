@@ -52,12 +52,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       UUID userId = UUID.fromString(claims.getSubject());
       String email = claims.get("email", String.class);
       TrustTier trustTier = TrustTier.valueOf(claims.get("trustTier", String.class));
+      UUID sessionId = UUID.fromString(claims.get("sessionId", String.class));
 
       JwtAuthenticationToken authentication =
           new JwtAuthenticationToken(
               userId,
               email,
               trustTier,
+              sessionId,
               Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
 
       SecurityContextHolder.getContext().setAuthentication(authentication);
@@ -84,17 +86,20 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final UUID userId;
     private final String email;
     private final TrustTier trustTier;
+    private final UUID sessionId;
 
     public JwtAuthenticationToken(
         UUID userId,
         String email,
         TrustTier trustTier,
+        UUID sessionId,
         java.util.Collection<? extends org.springframework.security.core.GrantedAuthority>
             authorities) {
       super(userId, null, authorities);
       this.userId = userId;
       this.email = email;
       this.trustTier = trustTier;
+      this.sessionId = sessionId;
     }
 
     public UUID getUserId() {
@@ -107,6 +112,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     public TrustTier getTrustTier() {
       return trustTier;
+    }
+
+    public UUID getSessionId() {
+      return sessionId;
     }
   }
 }

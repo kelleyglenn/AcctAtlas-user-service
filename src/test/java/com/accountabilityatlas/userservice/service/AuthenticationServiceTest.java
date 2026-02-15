@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -15,7 +16,9 @@ import com.accountabilityatlas.userservice.exception.InvalidCredentialsException
 import com.accountabilityatlas.userservice.repository.SessionRepository;
 import com.accountabilityatlas.userservice.repository.UserRepository;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.Optional;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -107,6 +110,32 @@ class AuthenticationServiceTest {
     authenticationService.login("Test@Example.COM", "password123", null, null);
 
     verify(userRepository).findByEmail("test@example.com");
+  }
+
+  @Test
+  void logout_revokesSessionById() {
+    // Arrange
+    UUID sessionId = UUID.randomUUID();
+    when(sessionRepository.revokeById(eq(sessionId), any(Instant.class))).thenReturn(1);
+
+    // Act
+    authenticationService.logout(sessionId);
+
+    // Assert
+    verify(sessionRepository).revokeById(eq(sessionId), any(Instant.class));
+  }
+
+  @Test
+  void logout_handlesAlreadyRevokedSession() {
+    // Arrange
+    UUID sessionId = UUID.randomUUID();
+    when(sessionRepository.revokeById(eq(sessionId), any(Instant.class))).thenReturn(0);
+
+    // Act - should not throw even if session was already revoked
+    authenticationService.logout(sessionId);
+
+    // Assert
+    verify(sessionRepository).revokeById(eq(sessionId), any(Instant.class));
   }
 
   private User buildUser(String email, String passwordHash) {

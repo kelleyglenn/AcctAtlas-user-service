@@ -31,6 +31,8 @@ public class SecurityConfig {
             auth ->
                 auth.requestMatchers("/actuator/**")
                     .permitAll()
+                    .requestMatchers(HttpMethod.POST, "/auth/logout")
+                    .authenticated()
                     .requestMatchers("/auth/**")
                     .permitAll()
                     .requestMatchers(HttpMethod.PUT, "/users/*/trust-tier")

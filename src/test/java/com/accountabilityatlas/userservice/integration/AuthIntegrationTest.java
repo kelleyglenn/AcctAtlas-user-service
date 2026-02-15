@@ -196,6 +196,39 @@ class AuthIntegrationTest {
   }
 
   @Test
+  void logout_withValidToken_returns204() throws Exception {
+    // Register and get tokens
+    MvcResult registerResult =
+        mockMvc
+            .perform(
+                post("/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "logout@example.com",
+                          "password": "SecurePass123",
+                          "displayName": "LogoutUser"
+                        }
+                        """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    String accessToken =
+        JsonPath.read(registerResult.getResponse().getContentAsString(), "$.tokens.accessToken");
+
+    // Logout with valid token
+    mockMvc
+        .perform(post("/auth/logout").header("Authorization", "Bearer " + accessToken))
+        .andExpect(status().isNoContent());
+  }
+
+  @Test
+  void logout_withoutToken_returns401() throws Exception {
+    mockMvc.perform(post("/auth/logout")).andExpect(status().isUnauthorized());
+  }
+
+  @Test
   void jwksEndpoint_returnsValidJwkSet() throws Exception {
     mockMvc
         .perform(get("/.well-known/jwks.json"))
