@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.ResponseEntity;
 
 class JwksControllerTest {
 
@@ -24,7 +25,8 @@ class JwksControllerTest {
   @Test
   @SuppressWarnings("unchecked")
   void jwks_returnsValidJwkSet() {
-    Map<String, Object> result = controller.jwks();
+    ResponseEntity<Map<String, Object>> response = controller.jwks();
+    Map<String, Object> result = response.getBody();
 
     assertThat(result).containsKey("keys");
     List<Map<String, Object>> keys = (List<Map<String, Object>>) result.get("keys");
@@ -37,10 +39,28 @@ class JwksControllerTest {
   }
 
   @Test
-  void jwks_returnsSameResultOnMultipleCalls() {
-    Map<String, Object> first = controller.jwks();
-    Map<String, Object> second = controller.jwks();
+  @SuppressWarnings("unchecked")
+  void jwks_doesNotExposePrivateKeyComponents() {
+    ResponseEntity<Map<String, Object>> response = controller.jwks();
+    Map<String, Object> result = response.getBody();
+    List<Map<String, Object>> keys = (List<Map<String, Object>>) result.get("keys");
+    Map<String, Object> key = keys.getFirst();
 
-    assertThat(first).isEqualTo(second);
+    assertThat(key).doesNotContainKeys("d", "p", "q", "dp", "dq", "qi");
+  }
+
+  @Test
+  void jwks_returnsSameResultOnMultipleCalls() {
+    ResponseEntity<Map<String, Object>> first = controller.jwks();
+    ResponseEntity<Map<String, Object>> second = controller.jwks();
+
+    assertThat(first.getBody()).isEqualTo(second.getBody());
+  }
+
+  @Test
+  void jwks_returnsCacheControlHeader() {
+    ResponseEntity<Map<String, Object>> response = controller.jwks();
+
+    assertThat(response.getHeaders().getCacheControl()).isEqualTo("max-age=3600");
   }
 }

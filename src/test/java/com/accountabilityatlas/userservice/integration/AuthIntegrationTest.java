@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -205,12 +206,18 @@ class AuthIntegrationTest {
         .andExpect(jsonPath("$.keys[0].kty").value("RSA"))
         .andExpect(jsonPath("$.keys[0].kid").value("user-service-key-1"))
         .andExpect(jsonPath("$.keys[0].n").exists())
-        .andExpect(jsonPath("$.keys[0].e").exists());
+        .andExpect(jsonPath("$.keys[0].e").exists())
+        .andExpect(jsonPath("$.keys[0].d").doesNotExist())
+        .andExpect(jsonPath("$.keys[0].p").doesNotExist())
+        .andExpect(jsonPath("$.keys[0].q").doesNotExist());
   }
 
   @Test
   void jwksEndpoint_isPublicWithoutAuthentication() throws Exception {
-    mockMvc.perform(get("/.well-known/jwks.json")).andExpect(status().isOk());
+    mockMvc
+        .perform(get("/.well-known/jwks.json"))
+        .andExpect(status().isOk())
+        .andExpect(header().string("Cache-Control", "max-age=3600"));
   }
 
   @Test
