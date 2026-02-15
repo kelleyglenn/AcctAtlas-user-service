@@ -1,6 +1,7 @@
 package com.accountabilityatlas.userservice.web;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -29,13 +30,15 @@ class JwksControllerTest {
     Map<String, Object> result = response.getBody();
 
     assertThat(result).containsKey("keys");
+    assertNotNull(result);
     List<Map<String, Object>> keys = (List<Map<String, Object>>) result.get("keys");
     assertThat(keys).hasSize(1);
 
     Map<String, Object> key = keys.getFirst();
-    assertThat(key.get("kty")).isEqualTo("RSA");
-    assertThat(key.get("kid")).isEqualTo("user-service-key-1");
-    assertThat(key).containsKeys("n", "e");
+    assertThat(key)
+        .containsEntry("kty", "RSA")
+        .containsEntry("kid", "user-service-key-1")
+        .containsKeys("n", "e");
   }
 
   @Test
@@ -43,6 +46,7 @@ class JwksControllerTest {
   void jwks_doesNotExposePrivateKeyComponents() {
     ResponseEntity<Map<String, Object>> response = controller.jwks();
     Map<String, Object> result = response.getBody();
+    assertNotNull(result);
     List<Map<String, Object>> keys = (List<Map<String, Object>>) result.get("keys");
     Map<String, Object> key = keys.getFirst();
 
