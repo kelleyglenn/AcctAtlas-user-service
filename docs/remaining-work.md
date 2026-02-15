@@ -30,7 +30,7 @@ These endpoints have generated OpenAPI interfaces but no implementation beyond a
 | Item | Current State | Target State |
 |------|---------------|--------------|
 | JaCoCo threshold | 0.80 in `build.gradle` | Done |
-| RSA key pair | Generated at startup (`JwtConfig.java`) | Load from AWS Secrets Manager; add key rotation and `kid` header |
+| RSA key pair | Generated at startup (`JwtConfig.java`); public key exposed via JWKS endpoint (`/.well-known/jwks.json`) | Load from AWS Secrets Manager; add key rotation and `kid` header |
 | Integration test Redis | Excluded via `spring.autoconfigure.exclude` | Add Redis TestContainer or mock |
 | `springdoc` version | 2.8.14 (Spring Boot 3.x compatible) | Upgrade to 3.x when migrating to Spring Boot 4.x |
 

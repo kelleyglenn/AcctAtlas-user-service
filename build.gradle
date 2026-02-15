@@ -44,6 +44,9 @@ dependencies {
     runtimeOnly "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
     runtimeOnly "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 
+    // JWKS endpoint
+    implementation "com.nimbusds:nimbus-jose-jwt:${nimbusJoseJwtVersion}"
+
     // OpenAPI generated code dependencies
     implementation "org.springdoc:springdoc-openapi-starter-webmvc-ui:${springdocVersion}"
     implementation "org.openapitools:jackson-databind-nullable:${jacksonDatabindNullableVersion}"

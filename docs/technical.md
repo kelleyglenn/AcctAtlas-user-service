@@ -85,10 +85,37 @@ PasswordReset (non-temporal - transient, expires in 24 hours)
 └── usedAt: Instant (nullable)
 ```
 
+## JWT and Key Management
+
+The user-service is the **sole issuer of JWTs** in the system. It signs access tokens with an RSA private key (RS256) and exposes the corresponding public key via a standard JWKS endpoint, enabling downstream services to validate tokens independently.
+
+### JWKS Endpoint
+
+`GET /.well-known/jwks.json` — Returns the RSA public key in [RFC 7517](https://datatracker.ietf.org/doc/html/rfc7517) JWK Set format. No authentication required.
+
+Downstream services (video-service, moderation-service, etc.) configure Spring's OAuth2 Resource Server to fetch the public key:
+
+```yaml
+spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          jwk-set-uri: http://user-service:8081/.well-known/jwks.json
+```
+
+Spring's `NimbusJwtDecoder` fetches and caches the key set automatically, refreshing when needed.
+
+### Current Limitations
+
+- RSA key pair is generated dynamically at startup (`JwtConfig.java`). Restarting user-service invalidates all existing tokens.
+- For production: load keys from AWS Secrets Manager with rotation and `kid` header support. See [remaining-work.md](remaining-work.md).
+
 ## API Endpoints
 
 | Method | Path | Auth | Description |
 |--------|------|------|-------------|
+| GET | /.well-known/jwks.json | Public | JWKS endpoint (RSA public key) |
 | POST | /auth/register | Public | Create account |
 | POST | /auth/login | Public | Email/password login |
 | POST | /auth/oauth/{provider} | Public | OAuth login |
