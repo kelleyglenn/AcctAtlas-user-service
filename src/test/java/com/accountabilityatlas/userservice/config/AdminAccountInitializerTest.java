@@ -25,7 +25,7 @@ class AdminAccountInitializerTest {
   @Mock private UserStatsRepository userStatsRepository;
 
   @Test
-  void run_createsAdminWhenEnvVarsSetAndUserDoesNotExist() throws Exception {
+  void run_createsAdminWhenEnvVarsSetAndUserDoesNotExist() {
     // Arrange
     String email = "admin@example.com";
     String passwordHash = "$2a$12$hashedpassword";
@@ -53,7 +53,7 @@ class AdminAccountInitializerTest {
   }
 
   @Test
-  void run_skipsWhenUserAlreadyExists() throws Exception {
+  void run_skipsWhenUserAlreadyExists() {
     // Arrange
     String email = "admin@example.com";
     String passwordHash = "$2a$12$hashedpassword";
@@ -70,7 +70,7 @@ class AdminAccountInitializerTest {
   }
 
   @Test
-  void run_skipsWhenEnvVarsMissing() throws Exception {
+  void run_skipsWhenEnvVarsMissing() {
     // Arrange
     AdminAccountInitializer initializer =
         new AdminAccountInitializer(userRepository, userStatsRepository, "", "");
@@ -85,7 +85,7 @@ class AdminAccountInitializerTest {
   }
 
   @Test
-  void run_skipsWhenOnlyEmailSet() throws Exception {
+  void run_skipsWhenOnlyEmailSet() {
     // Arrange
     AdminAccountInitializer initializer =
         new AdminAccountInitializer(userRepository, userStatsRepository, "admin@example.com", "");
@@ -99,7 +99,7 @@ class AdminAccountInitializerTest {
   }
 
   @Test
-  void run_skipsWhenOnlyPasswordHashSet() throws Exception {
+  void run_skipsWhenOnlyPasswordHashSet() {
     // Arrange
     AdminAccountInitializer initializer =
         new AdminAccountInitializer(
