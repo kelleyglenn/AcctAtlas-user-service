@@ -5,13 +5,13 @@
 INSERT INTO users.users (id, email, email_verified, password_hash, display_name, trust_tier)
 VALUES
     ('00000000-0000-0000-0000-000000000001', 'admin@example.com', true,
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3pEuPiC5w6GqCxZgq6ti', 'Admin User', 'ADMIN'),
+     '$2a$10$TQDQFlm7TjGqo5kUE/6/BusR7/mFLfMru3veFtfVQ5CmChTuP1F16', 'Admin User', 'ADMIN'),
     ('00000000-0000-0000-0000-000000000002', 'moderator@example.com', true,
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3pEuPiC5w6GqCxZgq6ti', 'Moderator User', 'MODERATOR'),
+     '$2a$10$TQDQFlm7TjGqo5kUE/6/BusR7/mFLfMru3veFtfVQ5CmChTuP1F16', 'Moderator User', 'MODERATOR'),
     ('00000000-0000-0000-0000-000000000003', 'trusted@example.com', true,
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3pEuPiC5w6GqCxZgq6ti', 'Trusted User', 'TRUSTED'),
+     '$2a$10$TQDQFlm7TjGqo5kUE/6/BusR7/mFLfMru3veFtfVQ5CmChTuP1F16', 'Trusted User', 'TRUSTED'),
     ('00000000-0000-0000-0000-000000000004', 'newuser@example.com', true,
-     '$2a$10$N9qo8uLOickgx2ZMRZoMyeIjZRGdjGj/n3pEuPiC5w6GqCxZgq6ti', 'New User', 'NEW')
+     '$2a$10$TQDQFlm7TjGqo5kUE/6/BusR7/mFLfMru3veFtfVQ5CmChTuP1F16', 'New User', 'NEW')
 ON CONFLICT (email) DO UPDATE SET
     password_hash = EXCLUDED.password_hash,
     display_name = EXCLUDED.display_name,
