@@ -8,6 +8,7 @@ import com.accountabilityatlas.userservice.repository.SessionRepository;
 import com.accountabilityatlas.userservice.repository.UserRepository;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.UUID;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -61,5 +62,10 @@ public class AuthenticationService {
             user.getId(), user.getEmail(), user.getTrustTier(), session.getId());
 
     return new AuthResult(user, accessToken, refreshToken);
+  }
+
+  @Transactional
+  public void logout(UUID sessionId) {
+    sessionRepository.revokeById(sessionId, Instant.now());
   }
 }
