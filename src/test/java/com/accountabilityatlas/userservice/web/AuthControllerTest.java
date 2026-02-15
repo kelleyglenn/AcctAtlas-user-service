@@ -132,18 +132,6 @@ class AuthControllerTest {
   }
 
   @Test
-  void logout_returns204OnSuccess() throws Exception {
-    // Arrange
-    UUID sessionId = UUID.randomUUID();
-    setAuthenticationContext(sessionId);
-
-    // Act & Assert
-    mockMvc.perform(post("/auth/logout")).andExpect(status().isNoContent());
-
-    verify(authenticationService).logout(sessionId);
-  }
-
-  @Test
   void logout_delegatesToAuthenticationService() throws Exception {
     // Arrange
     UUID sessionId = UUID.randomUUID();

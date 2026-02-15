@@ -12,6 +12,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.UUID;
+import lombok.Getter;
 import org.springframework.http.HttpHeaders;
 import org.springframework.lang.NonNull;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -82,6 +83,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     filterChain.doFilter(request, response);
   }
 
+  @Getter
   public static class JwtAuthenticationToken extends UsernamePasswordAuthenticationToken {
     private final UUID userId;
     private final String email;
@@ -100,22 +102,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
       this.email = email;
       this.trustTier = trustTier;
       this.sessionId = sessionId;
-    }
-
-    public UUID getUserId() {
-      return userId;
-    }
-
-    public String getEmail() {
-      return email;
-    }
-
-    public TrustTier getTrustTier() {
-      return trustTier;
-    }
-
-    public UUID getSessionId() {
-      return sessionId;
     }
   }
 }
