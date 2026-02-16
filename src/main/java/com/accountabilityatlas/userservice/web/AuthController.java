@@ -1,5 +1,6 @@
 package com.accountabilityatlas.userservice.web;
 
+import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
 import com.accountabilityatlas.userservice.service.AuthResult;
 import com.accountabilityatlas.userservice.service.AuthenticationService;
 import com.accountabilityatlas.userservice.service.RegistrationService;
@@ -23,6 +24,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -64,7 +66,10 @@ public class AuthController implements AuthenticationApi {
 
   @Override
   public ResponseEntity<Void> logoutUser() {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    JwtAuthenticationToken authentication =
+        (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+    authenticationService.logout(authentication.getSessionId());
+    return ResponseEntity.noContent().build();
   }
 
   @Override

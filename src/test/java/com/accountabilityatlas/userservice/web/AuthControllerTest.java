@@ -2,12 +2,14 @@ package com.accountabilityatlas.userservice.web;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter;
+import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import com.accountabilityatlas.userservice.exception.EmailAlreadyExistsException;
 import com.accountabilityatlas.userservice.exception.GlobalExceptionHandler;
@@ -15,13 +17,19 @@ import com.accountabilityatlas.userservice.exception.InvalidCredentialsException
 import com.accountabilityatlas.userservice.service.AuthResult;
 import com.accountabilityatlas.userservice.service.AuthenticationService;
 import com.accountabilityatlas.userservice.service.RegistrationService;
+import java.time.Instant;
+import java.util.Collections;
+import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.test.web.servlet.MockMvc;
 
 @WebMvcTest(AuthController.class)
@@ -123,6 +131,110 @@ class AuthControllerTest {
                     """))
         .andExpect(status().isUnauthorized())
         .andExpect(jsonPath("$.code").value("INVALID_CREDENTIALS"));
+  }
+
+  @Test
+  void logout_delegatesToAuthenticationService() throws Exception {
+    // Arrange
+    UUID sessionId = UUID.randomUUID();
+    setAuthenticationContext(sessionId);
+
+    // Act
+    mockMvc.perform(post("/auth/logout")).andExpect(status().isNoContent());
+
+    // Assert
+    verify(authenticationService).logout(sessionId);
+  }
+
+  @Test
+  void login_mapsAllUserFieldsIncludingOptional() throws Exception {
+    var user = buildDomainUser();
+    user.setAvatarUrl("https://example.com/avatar.png");
+    ReflectionTestUtils.setField(user, "createdAt", Instant.parse("2026-01-15T10:00:00Z"));
+    var result = new AuthResult(user, "access-token", "refresh-token");
+    when(authenticationService.login(anyString(), anyString(), any(), any())).thenReturn(result);
+
+    mockMvc
+        .perform(
+            post("/auth/login")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {
+                      "email": "test@example.com",
+                      "password": "SecurePass123"
+                    }
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.user.avatarUrl").value("https://example.com/avatar.png"))
+        .andExpect(jsonPath("$.user.createdAt").exists())
+        .andExpect(jsonPath("$.tokens.accessToken").value("access-token"))
+        .andExpect(jsonPath("$.tokens.refreshToken").value("refresh-token"))
+        .andExpect(jsonPath("$.tokens.expiresIn").value(900))
+        .andExpect(jsonPath("$.tokens.tokenType").value("Bearer"));
+  }
+
+  @Test
+  void oauthLogin_returns501() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/oauth/GOOGLE")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"idToken": "fake-token"}
+                    """))
+        .andExpect(status().isNotImplemented());
+  }
+
+  @Test
+  void refreshTokens_returns501() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"refreshToken": "fake-token"}
+                    """))
+        .andExpect(status().isNotImplemented());
+  }
+
+  @Test
+  void requestPasswordReset_returns501() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/password/reset")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"email": "test@example.com"}
+                    """))
+        .andExpect(status().isNotImplemented());
+  }
+
+  @Test
+  void confirmPasswordReset_returns501() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/password/reset/confirm")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"token": "reset-token", "newPassword": "NewPass123"}
+                    """))
+        .andExpect(status().isNotImplemented());
+  }
+
+  private void setAuthenticationContext(UUID sessionId) {
+    JwtAuthenticationToken authentication =
+        new JwtAuthenticationToken(
+            UUID.randomUUID(),
+            "test@example.com",
+            TrustTier.NEW,
+            sessionId,
+            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
+    SecurityContextHolder.getContext().setAuthentication(authentication);
   }
 
   private com.accountabilityatlas.userservice.domain.User buildDomainUser() {
