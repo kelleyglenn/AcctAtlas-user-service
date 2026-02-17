@@ -19,7 +19,9 @@ import com.accountabilityatlas.userservice.domain.UserStats;
 import com.accountabilityatlas.userservice.domain.Visibility;
 import com.accountabilityatlas.userservice.exception.GlobalExceptionHandler;
 import com.accountabilityatlas.userservice.exception.UserNotFoundException;
+import com.accountabilityatlas.userservice.service.AvatarService;
 import com.accountabilityatlas.userservice.service.UserService;
+import com.accountabilityatlas.userservice.web.model.AvatarSources;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.Optional;
@@ -44,6 +46,8 @@ class UsersControllerTest {
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private UserService userService;
+
+  @MockitoBean private AvatarService avatarService;
 
   @SuppressWarnings("UnusedVariable")
   @MockitoBean
@@ -278,6 +282,7 @@ class UsersControllerTest {
     socialLinks.setYoutube("UCtest123");
     when(userService.getSocialLinks(userId)).thenReturn(Optional.of(socialLinks));
     when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+    when(avatarService.getAvatarSources(any(), any())).thenReturn(new AvatarSources());
 
     mockMvc
         .perform(
@@ -305,6 +310,7 @@ class UsersControllerTest {
     socialLinks.setXTwitter("testhandle");
     when(userService.getSocialLinks(userId)).thenReturn(Optional.of(socialLinks));
     when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+    when(avatarService.getAvatarSources(any(), any())).thenReturn(new AvatarSources());
 
     mockMvc
         .perform(get("/users/me"))
@@ -339,6 +345,7 @@ class UsersControllerTest {
   private void stubDefaultProfileData(UUID userId) {
     when(userService.getSocialLinks(userId)).thenReturn(Optional.empty());
     when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+    when(avatarService.getAvatarSources(any(), any())).thenReturn(new AvatarSources());
   }
 
   private UserPrivacySettings buildDefaultPrivacySettings(UUID userId) {

@@ -4,6 +4,7 @@ import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAut
 import com.accountabilityatlas.userservice.domain.UserPrivacySettings;
 import com.accountabilityatlas.userservice.domain.UserSocialLinks;
 import com.accountabilityatlas.userservice.domain.Visibility;
+import com.accountabilityatlas.userservice.service.AvatarService;
 import com.accountabilityatlas.userservice.service.UserService;
 import com.accountabilityatlas.userservice.web.api.AdminApi;
 import com.accountabilityatlas.userservice.web.api.UsersApi;
@@ -27,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class UsersController implements UsersApi, AdminApi {
 
   private final UserService userService;
+  private final AvatarService avatarService;
 
-  public UsersController(UserService userService) {
+  public UsersController(UserService userService, AvatarService avatarService) {
     this.userService = userService;
+    this.avatarService = avatarService;
   }
 
   @Override
@@ -40,7 +43,7 @@ public class UsersController implements UsersApi, AdminApi {
 
     com.accountabilityatlas.userservice.domain.User domainUser = userService.getUserById(userId);
     User apiUser = toApiUser(domainUser);
-    enrichUserWithProfileData(apiUser, userId);
+    enrichUserWithProfileData(apiUser, userId, domainUser.getEmail());
     return ResponseEntity.ok(apiUser);
   }
 
@@ -75,7 +78,7 @@ public class UsersController implements UsersApi, AdminApi {
         userService.updateProfile(userId, updateUserRequest);
 
     User apiUser = toApiUser(domainUser);
-    enrichUserWithProfileData(apiUser, userId);
+    enrichUserWithProfileData(apiUser, userId, domainUser.getEmail());
     return ResponseEntity.ok(apiUser);
   }
 
@@ -109,11 +112,13 @@ public class UsersController implements UsersApi, AdminApi {
     return profile;
   }
 
-  private void enrichUserWithProfileData(User apiUser, UUID userId) {
-    userService
-        .getSocialLinks(userId)
-        .ifPresent(links -> apiUser.setSocialLinks(toApiSocialLinks(links)));
+  private void enrichUserWithProfileData(User apiUser, UUID userId, String email) {
+    UserSocialLinks socialLinks = userService.getSocialLinks(userId).orElse(null);
+    if (socialLinks != null) {
+      apiUser.setSocialLinks(toApiSocialLinks(socialLinks));
+    }
     apiUser.setPrivacySettings(toApiPrivacySettings(userService.getPrivacySettings(userId)));
+    apiUser.setAvatarSources(avatarService.getAvatarSources(email, socialLinks));
   }
 
   private User toApiUser(com.accountabilityatlas.userservice.domain.User domainUser) {
