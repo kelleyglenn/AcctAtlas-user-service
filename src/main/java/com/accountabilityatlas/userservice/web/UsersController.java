@@ -9,7 +9,6 @@ import com.accountabilityatlas.userservice.web.model.UpdateTrustTierRequest;
 import com.accountabilityatlas.userservice.web.model.UpdateUserRequest;
 import com.accountabilityatlas.userservice.web.model.User;
 import com.accountabilityatlas.userservice.web.model.UserPublicProfile;
-import com.accountabilityatlas.userservice.web.model.UserPublicStats;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -66,16 +65,14 @@ public class UsersController implements UsersApi, AdminApi {
     if (domainUser.getAvatarUrl() != null) {
       profile.setAvatarUrl(URI.create(domainUser.getAvatarUrl()));
     }
-    profile.setTrustTier(TrustTier.fromValue(domainUser.getTrustTier().name()));
     if (domainUser.getCreatedAt() != null) {
-      profile.setCreatedAt(OffsetDateTime.ofInstant(domainUser.getCreatedAt(), ZoneOffset.UTC));
+      OffsetDateTime created = OffsetDateTime.ofInstant(domainUser.getCreatedAt(), ZoneOffset.UTC);
+      profile.setCreatedAt(created);
+      profile.setMemberSince(created);
     }
 
     if (domainUser.getStats() != null) {
-      UserPublicStats stats = new UserPublicStats();
-      stats.setSubmissionCount(domainUser.getStats().getSubmissionCount());
-      stats.setApprovedCount(domainUser.getStats().getApprovedCount());
-      profile.setStats(stats);
+      profile.setApprovedVideoCount(domainUser.getStats().getApprovedCount());
     }
 
     return profile;

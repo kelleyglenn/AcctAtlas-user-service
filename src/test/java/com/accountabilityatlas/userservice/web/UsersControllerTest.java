@@ -120,7 +120,6 @@ class UsersControllerTest {
         .perform(get("/users/{id}", userId))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.displayName").value("PublicUser"))
-        .andExpect(jsonPath("$.trustTier").value("TRUSTED"))
         .andExpect(jsonPath("$.email").doesNotExist());
   }
 
@@ -136,7 +135,7 @@ class UsersControllerTest {
   }
 
   @Test
-  void getUserById_mapsAvatarUrlCreatedAtAndStats() throws Exception {
+  void getUserById_mapsAvatarUrlCreatedAtAndApprovedVideoCount() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = buildUserWithAllFields(userId);
     UserStats stats = new UserStats();
@@ -150,8 +149,8 @@ class UsersControllerTest {
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.avatarUrl").value("https://example.com/avatar.png"))
         .andExpect(jsonPath("$.createdAt").exists())
-        .andExpect(jsonPath("$.stats.submissionCount").value(10))
-        .andExpect(jsonPath("$.stats.approvedCount").value(8));
+        .andExpect(jsonPath("$.memberSince").exists())
+        .andExpect(jsonPath("$.approvedVideoCount").value(8));
   }
 
   @Test
