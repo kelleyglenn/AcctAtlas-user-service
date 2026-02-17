@@ -521,17 +521,6 @@ components:
           type: string
           format: date-time
 
-    UserPublicStats:
-      type: object
-      description: Public contribution statistics
-      properties:
-        submissionCount:
-          type: integer
-          minimum: 0
-        approvedCount:
-          type: integer
-          minimum: 0
-
     SocialLinks:
       type: object
       properties:
