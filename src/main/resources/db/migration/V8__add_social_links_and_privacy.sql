@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS users.user_social_links_history (LIKE users.user_soci
 
 CREATE TRIGGER user_social_links_versioning
     BEFORE INSERT OR UPDATE OR DELETE ON users.user_social_links
-    FOR EACH ROW EXECUTE FUNCTION versioning('sys_period', 'users.user_social_links_history', true);
+    FOR EACH ROW EXECUTE FUNCTION users.versioning_trigger_fn('users.user_social_links_history');
 
 -- Privacy settings table (1:1 with users, temporal)
 
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS users.user_privacy_settings_history (LIKE users.user_
 
 CREATE TRIGGER user_privacy_settings_versioning
     BEFORE INSERT OR UPDATE OR DELETE ON users.user_privacy_settings
-    FOR EACH ROW EXECUTE FUNCTION versioning('sys_period', 'users.user_privacy_settings_history', true);
+    FOR EACH ROW EXECUTE FUNCTION users.versioning_trigger_fn('users.user_privacy_settings_history');
 
 COMMENT ON TABLE users.user_social_links IS 'User social media profile links (1:1 with users)';
 COMMENT ON TABLE users.user_privacy_settings IS 'Per-section privacy visibility settings (1:1 with users)';
