@@ -2,12 +2,21 @@ package com.accountabilityatlas.userservice.service;
 
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import com.accountabilityatlas.userservice.domain.User;
+import com.accountabilityatlas.userservice.domain.UserPrivacySettings;
+import com.accountabilityatlas.userservice.domain.UserSocialLinks;
+import com.accountabilityatlas.userservice.domain.Visibility;
 import com.accountabilityatlas.userservice.event.EventPublisher;
 import com.accountabilityatlas.userservice.event.UserTrustTierChangedEvent;
 import com.accountabilityatlas.userservice.exception.UserNotFoundException;
+import com.accountabilityatlas.userservice.repository.UserPrivacySettingsRepository;
 import com.accountabilityatlas.userservice.repository.UserRepository;
+import com.accountabilityatlas.userservice.repository.UserSocialLinksRepository;
+import com.accountabilityatlas.userservice.web.model.PrivacySettings;
+import com.accountabilityatlas.userservice.web.model.SocialLinks;
+import com.accountabilityatlas.userservice.web.model.UpdateUserRequest;
 import java.time.Instant;
 import java.util.Locale;
+import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -20,6 +29,8 @@ import org.springframework.transaction.annotation.Transactional;
 public class UserService {
 
   private final UserRepository userRepository;
+  private final UserSocialLinksRepository socialLinksRepository;
+  private final UserPrivacySettingsRepository privacySettingsRepository;
   private final EventPublisher eventPublisher;
 
   @Transactional(readOnly = true)
@@ -48,6 +59,95 @@ public class UserService {
         new UserTrustTierChangedEvent(id, oldTier, newTier, changeReason, Instant.now()));
 
     return saved;
+  }
+
+  @Transactional
+  public User updateProfile(UUID userId, UpdateUserRequest request) {
+    User user = getUserByIdInternal(userId);
+
+    if (request.getDisplayName() != null) {
+      user.setDisplayName(request.getDisplayName());
+    }
+    if (request.getAvatarUrl() != null) {
+      user.setAvatarUrl(request.getAvatarUrl().toString());
+    }
+
+    userRepository.save(user);
+
+    // Update social links if provided
+    if (request.getSocialLinks() != null) {
+      UserSocialLinks socialLinks =
+          socialLinksRepository
+              .findById(userId)
+              .orElseGet(
+                  () -> {
+                    UserSocialLinks newLinks = new UserSocialLinks();
+                    newLinks.setUserId(userId);
+                    return newLinks;
+                  });
+      SocialLinks reqLinks = request.getSocialLinks();
+      if (reqLinks.getYoutube() != null) {
+        socialLinks.setYoutube(reqLinks.getYoutube());
+      }
+      if (reqLinks.getFacebook() != null) {
+        socialLinks.setFacebook(reqLinks.getFacebook());
+      }
+      if (reqLinks.getInstagram() != null) {
+        socialLinks.setInstagram(reqLinks.getInstagram());
+      }
+      if (reqLinks.getTiktok() != null) {
+        socialLinks.setTiktok(reqLinks.getTiktok());
+      }
+      if (reqLinks.getxTwitter() != null) {
+        socialLinks.setXTwitter(reqLinks.getxTwitter());
+      }
+      if (reqLinks.getBluesky() != null) {
+        socialLinks.setBluesky(reqLinks.getBluesky());
+      }
+      socialLinksRepository.save(socialLinks);
+    }
+
+    // Update privacy settings if provided
+    if (request.getPrivacySettings() != null) {
+      UserPrivacySettings privacySettings =
+          privacySettingsRepository
+              .findById(userId)
+              .orElseGet(
+                  () -> {
+                    UserPrivacySettings newSettings = new UserPrivacySettings();
+                    newSettings.setUserId(userId);
+                    return newSettings;
+                  });
+      PrivacySettings reqPrivacy = request.getPrivacySettings();
+      if (reqPrivacy.getSocialLinksVisibility() != null) {
+        privacySettings.setSocialLinksVisibility(
+            Visibility.valueOf(reqPrivacy.getSocialLinksVisibility().name()));
+      }
+      if (reqPrivacy.getSubmissionsVisibility() != null) {
+        privacySettings.setSubmissionsVisibility(
+            Visibility.valueOf(reqPrivacy.getSubmissionsVisibility().name()));
+      }
+      privacySettingsRepository.save(privacySettings);
+    }
+
+    return user;
+  }
+
+  @Transactional(readOnly = true)
+  public Optional<UserSocialLinks> getSocialLinks(UUID userId) {
+    return socialLinksRepository.findById(userId);
+  }
+
+  @Transactional(readOnly = true)
+  public UserPrivacySettings getPrivacySettings(UUID userId) {
+    return privacySettingsRepository
+        .findById(userId)
+        .orElseGet(
+            () -> {
+              UserPrivacySettings defaults = new UserPrivacySettings();
+              defaults.setUserId(userId);
+              return defaults;
+            });
   }
 
   private UserTrustTierChangedEvent.ChangeReason mapReason(String reason) {

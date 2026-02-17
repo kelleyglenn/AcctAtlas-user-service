@@ -13,12 +13,15 @@ import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter;
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import com.accountabilityatlas.userservice.domain.User;
+import com.accountabilityatlas.userservice.domain.UserPrivacySettings;
+import com.accountabilityatlas.userservice.domain.UserSocialLinks;
 import com.accountabilityatlas.userservice.domain.UserStats;
 import com.accountabilityatlas.userservice.exception.GlobalExceptionHandler;
 import com.accountabilityatlas.userservice.exception.UserNotFoundException;
 import com.accountabilityatlas.userservice.service.UserService;
 import java.time.Instant;
 import java.util.Collections;
+import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -53,37 +56,24 @@ class UsersControllerTest {
     user.setDisplayName("TestUser");
     user.setTrustTier(TrustTier.NEW);
 
-    JwtAuthenticationToken auth =
-        new JwtAuthenticationToken(
-            userId,
-            "test@example.com",
-            TrustTier.NEW,
-            UUID.randomUUID(),
-            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
-    SecurityContextHolder.getContext().setAuthentication(auth);
-
+    setAuthenticationContext(userId);
     when(userService.getUserById(userId)).thenReturn(user);
+    stubDefaultProfileData(userId);
 
     mockMvc
         .perform(get("/users/me"))
         .andExpect(status().isOk())
         .andExpect(jsonPath("$.email").value("test@example.com"))
         .andExpect(jsonPath("$.displayName").value("TestUser"))
-        .andExpect(jsonPath("$.trustTier").value("NEW"));
+        .andExpect(jsonPath("$.trustTier").value("NEW"))
+        .andExpect(jsonPath("$.privacySettings.socialLinksVisibility").value("REGISTERED"))
+        .andExpect(jsonPath("$.privacySettings.submissionsVisibility").value("PUBLIC"));
   }
 
   @Test
   void getCurrentUser_returns404WhenUserNotFound() throws Exception {
     UUID userId = UUID.randomUUID();
-
-    JwtAuthenticationToken auth =
-        new JwtAuthenticationToken(
-            userId,
-            "test@example.com",
-            TrustTier.NEW,
-            UUID.randomUUID(),
-            Collections.singletonList(new SimpleGrantedAuthority("ROLE_USER")));
-    SecurityContextHolder.getContext().setAuthentication(auth);
+    setAuthenticationContext(userId);
 
     when(userService.getUserById(any())).thenThrow(new UserNotFoundException(userId));
 
@@ -99,6 +89,7 @@ class UsersControllerTest {
     User user = buildUserWithAllFields(userId);
     setAuthenticationContext(userId);
     when(userService.getUserById(userId)).thenReturn(user);
+    stubDefaultProfileData(userId);
 
     mockMvc
         .perform(get("/users/me"))
@@ -177,6 +168,80 @@ class UsersControllerTest {
     verify(userService).updateTrustTier(userId, TrustTier.TRUSTED, "Good contributor");
   }
 
+  @Test
+  void updateCurrentUser_returns200WithUpdatedProfile() throws Exception {
+    UUID userId = UUID.randomUUID();
+    User user = buildUserWithAllFields(userId);
+    user.setDisplayName("UpdatedName");
+    setAuthenticationContext(userId);
+
+    when(userService.updateProfile(eq(userId), any())).thenReturn(user);
+    stubDefaultProfileData(userId);
+
+    mockMvc
+        .perform(
+            put("/users/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"displayName": "UpdatedName"}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.displayName").value("UpdatedName"))
+        .andExpect(jsonPath("$.privacySettings.socialLinksVisibility").value("REGISTERED"));
+
+    verify(userService).updateProfile(eq(userId), any());
+  }
+
+  @Test
+  void updateCurrentUser_withSocialLinks_returns200() throws Exception {
+    UUID userId = UUID.randomUUID();
+    User user = buildUserWithAllFields(userId);
+    setAuthenticationContext(userId);
+
+    when(userService.updateProfile(eq(userId), any())).thenReturn(user);
+
+    UserSocialLinks socialLinks = new UserSocialLinks();
+    socialLinks.setUserId(userId);
+    socialLinks.setYoutube("UCtest123");
+    when(userService.getSocialLinks(userId)).thenReturn(Optional.of(socialLinks));
+    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+
+    mockMvc
+        .perform(
+            put("/users/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"socialLinks": {"youtube": "UCtest123"}}
+                    """))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.socialLinks.youtube").value("UCtest123"));
+  }
+
+  @Test
+  void getCurrentUser_includesSocialLinksAndPrivacy() throws Exception {
+    UUID userId = UUID.randomUUID();
+    User user = buildUserWithAllFields(userId);
+    setAuthenticationContext(userId);
+
+    when(userService.getUserById(userId)).thenReturn(user);
+
+    UserSocialLinks socialLinks = new UserSocialLinks();
+    socialLinks.setUserId(userId);
+    socialLinks.setInstagram("testaccount");
+    socialLinks.setXTwitter("testhandle");
+    when(userService.getSocialLinks(userId)).thenReturn(Optional.of(socialLinks));
+    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+
+    mockMvc
+        .perform(get("/users/me"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.socialLinks.instagram").value("testaccount"))
+        .andExpect(jsonPath("$.socialLinks.xTwitter").value("testhandle"))
+        .andExpect(jsonPath("$.privacySettings.socialLinksVisibility").value("REGISTERED"));
+  }
+
   private void setAuthenticationContext(UUID userId) {
     JwtAuthenticationToken auth =
         new JwtAuthenticationToken(
@@ -197,5 +262,16 @@ class UsersControllerTest {
     user.setAvatarUrl("https://example.com/avatar.png");
     ReflectionTestUtils.setField(user, "createdAt", Instant.parse("2026-01-15T10:00:00Z"));
     return user;
+  }
+
+  private void stubDefaultProfileData(UUID userId) {
+    when(userService.getSocialLinks(userId)).thenReturn(Optional.empty());
+    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+  }
+
+  private UserPrivacySettings buildDefaultPrivacySettings(UUID userId) {
+    UserPrivacySettings settings = new UserPrivacySettings();
+    settings.setUserId(userId);
+    return settings;
   }
 }

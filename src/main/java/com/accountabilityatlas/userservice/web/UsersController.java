@@ -1,9 +1,13 @@
 package com.accountabilityatlas.userservice.web;
 
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
+import com.accountabilityatlas.userservice.domain.UserPrivacySettings;
+import com.accountabilityatlas.userservice.domain.UserSocialLinks;
 import com.accountabilityatlas.userservice.service.UserService;
 import com.accountabilityatlas.userservice.web.api.AdminApi;
 import com.accountabilityatlas.userservice.web.api.UsersApi;
+import com.accountabilityatlas.userservice.web.model.PrivacySettings;
+import com.accountabilityatlas.userservice.web.model.SocialLinks;
 import com.accountabilityatlas.userservice.web.model.TrustTier;
 import com.accountabilityatlas.userservice.web.model.UpdateTrustTierRequest;
 import com.accountabilityatlas.userservice.web.model.UpdateUserRequest;
@@ -13,7 +17,6 @@ import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
@@ -34,7 +37,9 @@ public class UsersController implements UsersApi, AdminApi {
     UUID userId = auth.getUserId();
 
     com.accountabilityatlas.userservice.domain.User domainUser = userService.getUserById(userId);
-    return ResponseEntity.ok(toApiUser(domainUser));
+    User apiUser = toApiUser(domainUser);
+    enrichUserWithProfileData(apiUser, userId);
+    return ResponseEntity.ok(apiUser);
   }
 
   @Override
@@ -45,7 +50,16 @@ public class UsersController implements UsersApi, AdminApi {
 
   @Override
   public ResponseEntity<User> updateCurrentUser(UpdateUserRequest updateUserRequest) {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    JwtAuthenticationToken auth =
+        (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+    UUID userId = auth.getUserId();
+
+    com.accountabilityatlas.userservice.domain.User domainUser =
+        userService.updateProfile(userId, updateUserRequest);
+
+    User apiUser = toApiUser(domainUser);
+    enrichUserWithProfileData(apiUser, userId);
+    return ResponseEntity.ok(apiUser);
   }
 
   @Override
@@ -78,6 +92,13 @@ public class UsersController implements UsersApi, AdminApi {
     return profile;
   }
 
+  private void enrichUserWithProfileData(User apiUser, UUID userId) {
+    userService
+        .getSocialLinks(userId)
+        .ifPresent(links -> apiUser.setSocialLinks(toApiSocialLinks(links)));
+    apiUser.setPrivacySettings(toApiPrivacySettings(userService.getPrivacySettings(userId)));
+  }
+
   private User toApiUser(com.accountabilityatlas.userservice.domain.User domainUser) {
     User apiUser = new User();
     apiUser.setId(domainUser.getId());
@@ -92,5 +113,27 @@ public class UsersController implements UsersApi, AdminApi {
       apiUser.setCreatedAt(OffsetDateTime.ofInstant(domainUser.getCreatedAt(), ZoneOffset.UTC));
     }
     return apiUser;
+  }
+
+  private SocialLinks toApiSocialLinks(UserSocialLinks links) {
+    SocialLinks api = new SocialLinks();
+    api.setYoutube(links.getYoutube());
+    api.setFacebook(links.getFacebook());
+    api.setInstagram(links.getInstagram());
+    api.setTiktok(links.getTiktok());
+    api.setxTwitter(links.getXTwitter());
+    api.setBluesky(links.getBluesky());
+    return api;
+  }
+
+  private PrivacySettings toApiPrivacySettings(UserPrivacySettings settings) {
+    PrivacySettings api = new PrivacySettings();
+    api.setSocialLinksVisibility(
+        PrivacySettings.SocialLinksVisibilityEnum.fromValue(
+            settings.getSocialLinksVisibility().name()));
+    api.setSubmissionsVisibility(
+        PrivacySettings.SubmissionsVisibilityEnum.fromValue(
+            settings.getSubmissionsVisibility().name()));
+    return api;
   }
 }
