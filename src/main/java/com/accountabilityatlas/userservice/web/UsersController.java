@@ -3,6 +3,7 @@ package com.accountabilityatlas.userservice.web;
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
 import com.accountabilityatlas.userservice.domain.UserPrivacySettings;
 import com.accountabilityatlas.userservice.domain.UserSocialLinks;
+import com.accountabilityatlas.userservice.domain.Visibility;
 import com.accountabilityatlas.userservice.service.UserService;
 import com.accountabilityatlas.userservice.web.api.AdminApi;
 import com.accountabilityatlas.userservice.web.api.UsersApi;
@@ -18,6 +19,7 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -45,7 +47,22 @@ public class UsersController implements UsersApi, AdminApi {
   @Override
   public ResponseEntity<UserPublicProfile> getUserById(UUID id) {
     com.accountabilityatlas.userservice.domain.User domainUser = userService.getUserById(id);
-    return ResponseEntity.ok(toPublicProfile(domainUser));
+    UserPublicProfile profile = toPublicProfile(domainUser);
+
+    boolean viewerIsRegistered = getCurrentUserIdOrNull() != null;
+    UserPrivacySettings privacy = userService.getPrivacySettings(id);
+
+    boolean showSocialLinks =
+        privacy.getSocialLinksVisibility() == Visibility.PUBLIC
+            || (privacy.getSocialLinksVisibility() == Visibility.REGISTERED && viewerIsRegistered);
+
+    if (showSocialLinks) {
+      userService
+          .getSocialLinks(id)
+          .ifPresent(links -> profile.setSocialLinks(toApiSocialLinks(links)));
+    }
+
+    return ResponseEntity.ok(profile);
   }
 
   @Override
@@ -135,5 +152,13 @@ public class UsersController implements UsersApi, AdminApi {
         PrivacySettings.SubmissionsVisibilityEnum.fromValue(
             settings.getSubmissionsVisibility().name()));
     return api;
+  }
+
+  private UUID getCurrentUserIdOrNull() {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth instanceof JwtAuthenticationToken jwt) {
+      return jwt.getUserId();
+    }
+    return null;
   }
 }

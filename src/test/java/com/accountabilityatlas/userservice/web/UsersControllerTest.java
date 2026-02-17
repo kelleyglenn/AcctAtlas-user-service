@@ -16,6 +16,7 @@ import com.accountabilityatlas.userservice.domain.User;
 import com.accountabilityatlas.userservice.domain.UserPrivacySettings;
 import com.accountabilityatlas.userservice.domain.UserSocialLinks;
 import com.accountabilityatlas.userservice.domain.UserStats;
+import com.accountabilityatlas.userservice.domain.Visibility;
 import com.accountabilityatlas.userservice.exception.GlobalExceptionHandler;
 import com.accountabilityatlas.userservice.exception.UserNotFoundException;
 import com.accountabilityatlas.userservice.service.UserService;
@@ -106,6 +107,7 @@ class UsersControllerTest {
     user.setTrustTier(TrustTier.TRUSTED);
     ReflectionTestUtils.setField(user, "id", userId);
     when(userService.getUserById(userId)).thenReturn(user);
+    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
 
     mockMvc
         .perform(get("/users/{id}", userId))
@@ -134,6 +136,7 @@ class UsersControllerTest {
     stats.setApprovedCount(8);
     user.setStats(stats);
     when(userService.getUserById(userId)).thenReturn(user);
+    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
 
     mockMvc
         .perform(get("/users/{id}", userId))
@@ -142,6 +145,75 @@ class UsersControllerTest {
         .andExpect(jsonPath("$.createdAt").exists())
         .andExpect(jsonPath("$.memberSince").exists())
         .andExpect(jsonPath("$.approvedVideoCount").value(8));
+  }
+
+  @Test
+  void getUserById_showsSocialLinks_whenVisibilityIsPublic() throws Exception {
+    UUID userId = UUID.randomUUID();
+    User user = buildUserWithAllFields(userId);
+    when(userService.getUserById(userId)).thenReturn(user);
+
+    UserPrivacySettings privacy = buildDefaultPrivacySettings(userId);
+    privacy.setSocialLinksVisibility(Visibility.PUBLIC);
+    when(userService.getPrivacySettings(userId)).thenReturn(privacy);
+
+    UserSocialLinks socialLinks = new UserSocialLinks();
+    socialLinks.setUserId(userId);
+    socialLinks.setYoutube("UCtest");
+    when(userService.getSocialLinks(userId)).thenReturn(Optional.of(socialLinks));
+
+    // No auth set - anonymous viewer
+    SecurityContextHolder.clearContext();
+
+    mockMvc
+        .perform(get("/users/{id}", userId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.socialLinks.youtube").value("UCtest"));
+  }
+
+  @Test
+  void getUserById_hidesSocialLinks_whenVisibilityIsRegistered_andViewerAnonymous()
+      throws Exception {
+    UUID userId = UUID.randomUUID();
+    User user = buildUserWithAllFields(userId);
+    when(userService.getUserById(userId)).thenReturn(user);
+
+    // Social links visibility = REGISTERED (default)
+    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+
+    // No auth set - anonymous viewer
+    SecurityContextHolder.clearContext();
+
+    mockMvc
+        .perform(get("/users/{id}", userId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.socialLinks").doesNotExist());
+  }
+
+  @Test
+  void getUserById_showsSocialLinks_whenVisibilityIsRegistered_andViewerAuthenticated()
+      throws Exception {
+    UUID profileUserId = UUID.randomUUID();
+    UUID viewerUserId = UUID.randomUUID();
+    User user = buildUserWithAllFields(profileUserId);
+    when(userService.getUserById(profileUserId)).thenReturn(user);
+
+    // Social links visibility = REGISTERED (default)
+    when(userService.getPrivacySettings(profileUserId))
+        .thenReturn(buildDefaultPrivacySettings(profileUserId));
+
+    UserSocialLinks socialLinks = new UserSocialLinks();
+    socialLinks.setUserId(profileUserId);
+    socialLinks.setInstagram("testaccount");
+    when(userService.getSocialLinks(profileUserId)).thenReturn(Optional.of(socialLinks));
+
+    // Set viewer as authenticated
+    setAuthenticationContext(viewerUserId);
+
+    mockMvc
+        .perform(get("/users/{id}", profileUserId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.socialLinks.instagram").value("testaccount"));
   }
 
   @Test
