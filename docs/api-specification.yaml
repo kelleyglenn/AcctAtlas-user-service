@@ -753,8 +753,9 @@ components:
           maxLength: 100
         avatarUrl:
           type: string
-          format: uri
+          maxLength: 500
           nullable: true
+          description: URL to avatar image
         socialLinks:
           $ref: '#/components/schemas/SocialLinks'
         privacySettings:

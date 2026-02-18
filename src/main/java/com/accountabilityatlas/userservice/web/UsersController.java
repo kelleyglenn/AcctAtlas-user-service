@@ -49,25 +49,22 @@ public class UsersController implements UsersApi, AdminApi {
 
   @Override
   public ResponseEntity<UserPublicProfile> getUserById(UUID id) {
-    com.accountabilityatlas.userservice.domain.User domainUser = userService.getUserById(id);
-    UserPublicProfile profile = toPublicProfile(domainUser);
+    UserService.PublicProfileData data = userService.getPublicProfileData(id);
+    UserPublicProfile profile = toPublicProfile(data.user());
 
     boolean viewerIsRegistered = getCurrentUserIdOrNull() != null;
 
     if (viewerIsRegistered) {
-      profile.setTrustTier(TrustTier.fromValue(domainUser.getTrustTier().name()));
+      profile.setTrustTier(TrustTier.fromValue(data.user().getTrustTier().name()));
     }
 
-    UserPrivacySettings privacy = userService.getPrivacySettings(id);
-
     boolean showSocialLinks =
-        privacy.getSocialLinksVisibility() == Visibility.PUBLIC
-            || (privacy.getSocialLinksVisibility() == Visibility.REGISTERED && viewerIsRegistered);
+        data.privacySettings().getSocialLinksVisibility() == Visibility.PUBLIC
+            || (data.privacySettings().getSocialLinksVisibility() == Visibility.REGISTERED
+                && viewerIsRegistered);
 
     if (showSocialLinks) {
-      userService
-          .getSocialLinks(id)
-          .ifPresent(links -> profile.setSocialLinks(toApiSocialLinks(links)));
+      data.socialLinks().ifPresent(links -> profile.setSocialLinks(toApiSocialLinks(links)));
     }
 
     return ResponseEntity.ok(profile);

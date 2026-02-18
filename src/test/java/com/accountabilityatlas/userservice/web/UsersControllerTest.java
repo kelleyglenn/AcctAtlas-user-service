@@ -110,8 +110,10 @@ class UsersControllerTest {
     user.setDisplayName("PublicUser");
     user.setTrustTier(TrustTier.TRUSTED);
     ReflectionTestUtils.setField(user, "id", userId);
-    when(userService.getUserById(userId)).thenReturn(user);
-    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+    when(userService.getPublicProfileData(userId))
+        .thenReturn(
+            new UserService.PublicProfileData(
+                user, buildDefaultPrivacySettings(userId), Optional.empty()));
 
     mockMvc
         .perform(get("/users/{id}", userId))
@@ -123,7 +125,7 @@ class UsersControllerTest {
   @Test
   void getUserById_returns404WhenUserNotFound() throws Exception {
     UUID userId = UUID.randomUUID();
-    when(userService.getUserById(userId)).thenThrow(new UserNotFoundException(userId));
+    when(userService.getPublicProfileData(userId)).thenThrow(new UserNotFoundException(userId));
 
     mockMvc
         .perform(get("/users/{id}", userId))
@@ -139,8 +141,10 @@ class UsersControllerTest {
     stats.setSubmissionCount(10);
     stats.setApprovedCount(8);
     user.setStats(stats);
-    when(userService.getUserById(userId)).thenReturn(user);
-    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+    when(userService.getPublicProfileData(userId))
+        .thenReturn(
+            new UserService.PublicProfileData(
+                user, buildDefaultPrivacySettings(userId), Optional.empty()));
 
     mockMvc
         .perform(get("/users/{id}", userId))
@@ -155,16 +159,16 @@ class UsersControllerTest {
   void getUserById_showsSocialLinks_whenVisibilityIsPublic() throws Exception {
     UUID userId = UUID.randomUUID();
     User user = buildUserWithAllFields(userId);
-    when(userService.getUserById(userId)).thenReturn(user);
 
     UserPrivacySettings privacy = buildDefaultPrivacySettings(userId);
     privacy.setSocialLinksVisibility(Visibility.PUBLIC);
-    when(userService.getPrivacySettings(userId)).thenReturn(privacy);
 
     UserSocialLinks socialLinks = new UserSocialLinks();
     socialLinks.setUserId(userId);
     socialLinks.setYoutube("UCtest");
-    when(userService.getSocialLinks(userId)).thenReturn(Optional.of(socialLinks));
+
+    when(userService.getPublicProfileData(userId))
+        .thenReturn(new UserService.PublicProfileData(user, privacy, Optional.of(socialLinks)));
 
     // No auth set - anonymous viewer
     SecurityContextHolder.clearContext();
@@ -180,10 +184,11 @@ class UsersControllerTest {
       throws Exception {
     UUID userId = UUID.randomUUID();
     User user = buildUserWithAllFields(userId);
-    when(userService.getUserById(userId)).thenReturn(user);
 
-    // Social links visibility = REGISTERED (default)
-    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+    when(userService.getPublicProfileData(userId))
+        .thenReturn(
+            new UserService.PublicProfileData(
+                user, buildDefaultPrivacySettings(userId), Optional.empty()));
 
     // No auth set - anonymous viewer
     SecurityContextHolder.clearContext();
@@ -199,8 +204,10 @@ class UsersControllerTest {
     UUID userId = UUID.randomUUID();
     User user = buildUserWithAllFields(userId);
     user.setTrustTier(TrustTier.TRUSTED);
-    when(userService.getUserById(userId)).thenReturn(user);
-    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+    when(userService.getPublicProfileData(userId))
+        .thenReturn(
+            new UserService.PublicProfileData(
+                user, buildDefaultPrivacySettings(userId), Optional.empty()));
 
     SecurityContextHolder.clearContext();
 
@@ -216,9 +223,10 @@ class UsersControllerTest {
     UUID viewerUserId = UUID.randomUUID();
     User user = buildUserWithAllFields(profileUserId);
     user.setTrustTier(TrustTier.TRUSTED);
-    when(userService.getUserById(profileUserId)).thenReturn(user);
-    when(userService.getPrivacySettings(profileUserId))
-        .thenReturn(buildDefaultPrivacySettings(profileUserId));
+    when(userService.getPublicProfileData(profileUserId))
+        .thenReturn(
+            new UserService.PublicProfileData(
+                user, buildDefaultPrivacySettings(profileUserId), Optional.empty()));
 
     setAuthenticationContext(viewerUserId);
 
@@ -234,16 +242,15 @@ class UsersControllerTest {
     UUID profileUserId = UUID.randomUUID();
     UUID viewerUserId = UUID.randomUUID();
     User user = buildUserWithAllFields(profileUserId);
-    when(userService.getUserById(profileUserId)).thenReturn(user);
-
-    // Social links visibility = REGISTERED (default)
-    when(userService.getPrivacySettings(profileUserId))
-        .thenReturn(buildDefaultPrivacySettings(profileUserId));
 
     UserSocialLinks socialLinks = new UserSocialLinks();
     socialLinks.setUserId(profileUserId);
     socialLinks.setInstagram("testaccount");
-    when(userService.getSocialLinks(profileUserId)).thenReturn(Optional.of(socialLinks));
+
+    when(userService.getPublicProfileData(profileUserId))
+        .thenReturn(
+            new UserService.PublicProfileData(
+                user, buildDefaultPrivacySettings(profileUserId), Optional.of(socialLinks)));
 
     // Set viewer as authenticated
     setAuthenticationContext(viewerUserId);
@@ -352,6 +359,26 @@ class UsersControllerTest {
         .andExpect(jsonPath("$.socialLinks.instagram").value("testaccount"))
         .andExpect(jsonPath("$.socialLinks.xTwitter").value("testhandle"))
         .andExpect(jsonPath("$.privacySettings.socialLinksVisibility").value("REGISTERED"));
+  }
+
+  @Test
+  void updateCurrentUser_returnsFieldErrors_whenValidationFails() throws Exception {
+    UUID userId = UUID.randomUUID();
+    setAuthenticationContext(userId);
+
+    mockMvc
+        .perform(
+            put("/users/me")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"displayName": "X"}
+                    """))
+        .andExpect(status().isBadRequest())
+        .andExpect(jsonPath("$.code").value("VALIDATION_ERROR"))
+        .andExpect(jsonPath("$.details").isArray())
+        .andExpect(jsonPath("$.details[0].field").exists())
+        .andExpect(jsonPath("$.details[0].message").exists());
   }
 
   private void setAuthenticationContext(UUID userId) {

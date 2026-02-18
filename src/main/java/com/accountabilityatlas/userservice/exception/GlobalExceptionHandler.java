@@ -1,6 +1,7 @@
 package com.accountabilityatlas.userservice.exception;
 
 import com.accountabilityatlas.userservice.web.model.Error;
+import com.accountabilityatlas.userservice.web.model.FieldError;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -39,6 +40,15 @@ public class GlobalExceptionHandler {
     Error error = new Error();
     error.setCode("VALIDATION_ERROR");
     error.setMessage("Request validation failed");
+    ex.getBindingResult()
+        .getFieldErrors()
+        .forEach(
+            fe -> {
+              FieldError detail = new FieldError();
+              detail.setField(fe.getField());
+              detail.setMessage(fe.getDefaultMessage());
+              error.addDetailsItem(detail);
+            });
     return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
   }
 

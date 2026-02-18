@@ -21,7 +21,6 @@ import com.accountabilityatlas.userservice.repository.UserSocialLinksRepository;
 import com.accountabilityatlas.userservice.web.model.PrivacySettings;
 import com.accountabilityatlas.userservice.web.model.SocialLinks;
 import com.accountabilityatlas.userservice.web.model.UpdateUserRequest;
-import java.net.URI;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -153,7 +152,7 @@ class UserServiceTest {
     when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
 
     UpdateUserRequest request = new UpdateUserRequest();
-    request.setAvatarUrl(URI.create("https://example.com/new-avatar.png"));
+    request.setAvatarUrl("https://example.com/new-avatar.png");
 
     User result = userService.updateProfile(userId, request);
 
@@ -184,6 +183,57 @@ class UserServiceTest {
     assertThat(saved.getUserId()).isEqualTo(userId);
     assertThat(saved.getYoutube()).isEqualTo("UCtest123");
     assertThat(saved.getInstagram()).isEqualTo("testaccount");
+  }
+
+  @Test
+  void updateProfile_clearsSocialLinkField() {
+    UUID userId = UUID.randomUUID();
+    User user = buildUser(userId);
+    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+    when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    UserSocialLinks existingLinks = new UserSocialLinks();
+    existingLinks.setUserId(userId);
+    existingLinks.setYoutube("UCtest");
+    when(socialLinksRepository.findById(userId)).thenReturn(Optional.of(existingLinks));
+
+    SocialLinks socialLinks = new SocialLinks();
+    socialLinks.setYoutube("");
+
+    UpdateUserRequest request = new UpdateUserRequest();
+    request.setSocialLinks(socialLinks);
+
+    userService.updateProfile(userId, request);
+
+    ArgumentCaptor<UserSocialLinks> captor = ArgumentCaptor.forClass(UserSocialLinks.class);
+    verify(socialLinksRepository).save(captor.capture());
+
+    UserSocialLinks saved = captor.getValue();
+    assertThat(saved.getYoutube()).isNull();
+  }
+
+  @Test
+  void getPublicProfileData_returnsUserWithPrivacyAndSocialLinks() {
+    UUID userId = UUID.randomUUID();
+    User user = buildUser(userId);
+    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+
+    UserPrivacySettings privacy = new UserPrivacySettings();
+    privacy.setUserId(userId);
+    privacy.setSocialLinksVisibility(Visibility.PUBLIC);
+    when(privacySettingsRepository.findById(userId)).thenReturn(Optional.of(privacy));
+
+    UserSocialLinks links = new UserSocialLinks();
+    links.setUserId(userId);
+    links.setYoutube("UCtest");
+    when(socialLinksRepository.findById(userId)).thenReturn(Optional.of(links));
+
+    UserService.PublicProfileData data = userService.getPublicProfileData(userId);
+
+    assertThat(data.user()).isEqualTo(user);
+    assertThat(data.privacySettings().getSocialLinksVisibility()).isEqualTo(Visibility.PUBLIC);
+    assertThat(data.socialLinks()).isPresent();
+    assertThat(data.socialLinks().get().getYoutube()).isEqualTo("UCtest");
   }
 
   @Test

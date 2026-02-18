@@ -5,6 +5,7 @@ import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -32,6 +33,7 @@ public class RestYouTubeClient implements YouTubeClient {
   }
 
   @Override
+  @Cacheable(value = "youtube-thumbnails", key = "#channelId")
   public Optional<String> getChannelThumbnailUrl(String channelId) {
     try {
       JsonNode response =

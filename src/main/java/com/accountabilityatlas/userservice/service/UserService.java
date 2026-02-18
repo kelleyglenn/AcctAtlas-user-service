@@ -33,9 +33,20 @@ public class UserService {
   private final UserPrivacySettingsRepository privacySettingsRepository;
   private final EventPublisher eventPublisher;
 
+  public record PublicProfileData(
+      User user, UserPrivacySettings privacySettings, Optional<UserSocialLinks> socialLinks) {}
+
   @Transactional(readOnly = true)
   public User getUserById(UUID id) {
     return getUserByIdInternal(id);
+  }
+
+  @Transactional(readOnly = true)
+  public PublicProfileData getPublicProfileData(UUID id) {
+    User user = getUserByIdInternal(id);
+    UserPrivacySettings privacy = getPrivacySettings(id);
+    Optional<UserSocialLinks> socialLinks = getSocialLinks(id);
+    return new PublicProfileData(user, privacy, socialLinks);
   }
 
   @Transactional
@@ -69,7 +80,7 @@ public class UserService {
       user.setDisplayName(request.getDisplayName());
     }
     if (request.getAvatarUrl() != null) {
-      user.setAvatarUrl(request.getAvatarUrl().toString());
+      user.setAvatarUrl(request.getAvatarUrl());
     }
 
     userRepository.save(user);
@@ -86,24 +97,12 @@ public class UserService {
                     return newLinks;
                   });
       SocialLinks reqLinks = request.getSocialLinks();
-      if (reqLinks.getYoutube() != null) {
-        socialLinks.setYoutube(reqLinks.getYoutube());
-      }
-      if (reqLinks.getFacebook() != null) {
-        socialLinks.setFacebook(reqLinks.getFacebook());
-      }
-      if (reqLinks.getInstagram() != null) {
-        socialLinks.setInstagram(reqLinks.getInstagram());
-      }
-      if (reqLinks.getTiktok() != null) {
-        socialLinks.setTiktok(reqLinks.getTiktok());
-      }
-      if (reqLinks.getxTwitter() != null) {
-        socialLinks.setXTwitter(reqLinks.getxTwitter());
-      }
-      if (reqLinks.getBluesky() != null) {
-        socialLinks.setBluesky(reqLinks.getBluesky());
-      }
+      socialLinks.setYoutube(emptyToNull(reqLinks.getYoutube()));
+      socialLinks.setFacebook(emptyToNull(reqLinks.getFacebook()));
+      socialLinks.setInstagram(emptyToNull(reqLinks.getInstagram()));
+      socialLinks.setTiktok(emptyToNull(reqLinks.getTiktok()));
+      socialLinks.setXTwitter(emptyToNull(reqLinks.getxTwitter()));
+      socialLinks.setBluesky(emptyToNull(reqLinks.getBluesky()));
       socialLinksRepository.save(socialLinks);
     }
 
@@ -159,6 +158,10 @@ public class UserService {
       case "AUTO_DEMOTION" -> UserTrustTierChangedEvent.ChangeReason.AUTO_DEMOTION;
       default -> UserTrustTierChangedEvent.ChangeReason.MANUAL;
     };
+  }
+
+  private static String emptyToNull(String value) {
+    return (value != null && !value.isBlank()) ? value : null;
   }
 
   private User getUserByIdInternal(UUID id) {
