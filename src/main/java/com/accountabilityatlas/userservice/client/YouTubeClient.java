@@ -1,6 +1,6 @@
 package com.accountabilityatlas.userservice.client;
 
-import java.util.Optional;
+import org.springframework.lang.Nullable;
 
 /** Client for fetching data from the YouTube Data API. */
 public interface YouTubeClient {
@@ -9,7 +9,8 @@ public interface YouTubeClient {
    * Fetches the thumbnail URL for the given YouTube channel.
    *
    * @param channelId the YouTube channel ID (e.g. "UCtest123")
-   * @return the thumbnail URL, or empty if unavailable
+   * @return the thumbnail URL, or null if unavailable
    */
-  Optional<String> getChannelThumbnailUrl(String channelId);
+  @Nullable
+  String getChannelThumbnailUrl(String channelId);
 }

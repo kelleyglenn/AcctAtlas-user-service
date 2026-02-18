@@ -80,7 +80,7 @@ public class UserService {
       user.setDisplayName(request.getDisplayName());
     }
     if (request.getAvatarUrl() != null) {
-      user.setAvatarUrl(request.getAvatarUrl());
+      user.setAvatarUrl(emptyToNull(request.getAvatarUrl()));
     }
 
     userRepository.save(user);

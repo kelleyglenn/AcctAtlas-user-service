@@ -39,7 +39,8 @@ public class AvatarService {
    * @return the thumbnail URL, or empty if unavailable
    */
   public Optional<URI> resolveYoutubeThumbnailUrl(String youtubeChannelId) {
-    return youTubeClient.getChannelThumbnailUrl(youtubeChannelId).map(URI::create);
+    return Optional.ofNullable(youTubeClient.getChannelThumbnailUrl(youtubeChannelId))
+        .map(URI::create);
   }
 
   /**

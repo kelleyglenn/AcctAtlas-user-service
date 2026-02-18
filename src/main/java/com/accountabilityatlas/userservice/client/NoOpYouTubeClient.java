@@ -1,13 +1,13 @@
 package com.accountabilityatlas.userservice.client;
 
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 
 /**
  * No-op implementation of {@link YouTubeClient} used when no YouTube API key is configured. Always
- * returns empty.
+ * returns null.
  */
 @Component
 @ConditionalOnMissingBean(RestYouTubeClient.class)
@@ -19,7 +19,8 @@ public class NoOpYouTubeClient implements YouTubeClient {
   }
 
   @Override
-  public Optional<String> getChannelThumbnailUrl(String channelId) {
-    return Optional.empty();
+  @Nullable
+  public String getChannelThumbnailUrl(String channelId) {
+    return null;
   }
 }

@@ -160,6 +160,22 @@ class UserServiceTest {
   }
 
   @Test
+  void updateProfile_clearsAvatarUrl() {
+    UUID userId = UUID.randomUUID();
+    User user = buildUser(userId);
+    user.setAvatarUrl("https://example.com/old-avatar.png");
+    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+    when(userRepository.save(any(User.class))).thenAnswer(inv -> inv.getArgument(0));
+
+    UpdateUserRequest request = new UpdateUserRequest();
+    request.setAvatarUrl("");
+
+    User result = userService.updateProfile(userId, request);
+
+    assertThat(result.getAvatarUrl()).isNull();
+  }
+
+  @Test
   void updateProfile_updatesSocialLinks() {
     UUID userId = UUID.randomUUID();
     User user = buildUser(userId);

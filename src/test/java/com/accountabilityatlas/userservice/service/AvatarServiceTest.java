@@ -67,7 +67,7 @@ class AvatarServiceTest {
     socialLinks.setUserId(UUID.randomUUID());
     socialLinks.setYoutube(channelId);
 
-    when(youTubeClient.getChannelThumbnailUrl(channelId)).thenReturn(Optional.of(thumbnailUrl));
+    when(youTubeClient.getChannelThumbnailUrl(channelId)).thenReturn(thumbnailUrl);
 
     AvatarSources result = avatarService.getAvatarSources(TEST_EMAIL, socialLinks);
 
@@ -108,7 +108,7 @@ class AvatarServiceTest {
     socialLinks.setUserId(UUID.randomUUID());
     socialLinks.setYoutube(channelId);
 
-    when(youTubeClient.getChannelThumbnailUrl(channelId)).thenReturn(Optional.empty());
+    when(youTubeClient.getChannelThumbnailUrl(channelId)).thenReturn(null);
 
     AvatarSources result = avatarService.getAvatarSources(TEST_EMAIL, socialLinks);
 
@@ -120,7 +120,7 @@ class AvatarServiceTest {
   void resolveYoutubeThumbnailUrl_returnsUri_whenClientReturnsThumbnail() {
     String channelId = "UCtest123";
     String thumbnailUrl = "https://yt3.ggpht.com/thumbnail.jpg";
-    when(youTubeClient.getChannelThumbnailUrl(channelId)).thenReturn(Optional.of(thumbnailUrl));
+    when(youTubeClient.getChannelThumbnailUrl(channelId)).thenReturn(thumbnailUrl);
 
     Optional<URI> result = avatarService.resolveYoutubeThumbnailUrl(channelId);
 
@@ -130,7 +130,7 @@ class AvatarServiceTest {
   @Test
   void resolveYoutubeThumbnailUrl_returnsEmpty_whenClientReturnsEmpty() {
     String channelId = "UCnonexistent";
-    when(youTubeClient.getChannelThumbnailUrl(channelId)).thenReturn(Optional.empty());
+    when(youTubeClient.getChannelThumbnailUrl(channelId)).thenReturn(null);
 
     Optional<URI> result = avatarService.resolveYoutubeThumbnailUrl(channelId);
 

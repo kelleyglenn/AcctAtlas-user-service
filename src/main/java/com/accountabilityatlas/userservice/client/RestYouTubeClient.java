@@ -1,12 +1,12 @@
 package com.accountabilityatlas.userservice.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.http.MediaType;
+import org.springframework.lang.Nullable;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
@@ -34,7 +34,8 @@ public class RestYouTubeClient implements YouTubeClient {
 
   @Override
   @Cacheable(value = "youtube-thumbnails", key = "#channelId")
-  public Optional<String> getChannelThumbnailUrl(String channelId) {
+  @Nullable
+  public String getChannelThumbnailUrl(String channelId) {
     try {
       JsonNode response =
           restClient
@@ -52,26 +53,26 @@ public class RestYouTubeClient implements YouTubeClient {
               .body(JsonNode.class);
 
       if (response == null) {
-        return Optional.empty();
+        return null;
       }
 
       JsonNode items = response.path("items");
       if (items.isMissingNode() || items.isEmpty()) {
         log.debug("No YouTube channel found for ID: {}", channelId);
-        return Optional.empty();
+        return null;
       }
 
       JsonNode thumbnailUrl =
           items.get(0).path("snippet").path("thumbnails").path("default").path("url");
 
       if (thumbnailUrl.isMissingNode() || thumbnailUrl.isNull()) {
-        return Optional.empty();
+        return null;
       }
 
-      return Optional.of(thumbnailUrl.asText());
+      return thumbnailUrl.asText();
     } catch (Exception e) {
       log.warn("Failed to fetch YouTube thumbnail for channel {}: {}", channelId, e.getMessage());
-      return Optional.empty();
+      return null;
     }
   }
 }
