@@ -53,6 +53,11 @@ public class UsersController implements UsersApi, AdminApi {
     UserPublicProfile profile = toPublicProfile(domainUser);
 
     boolean viewerIsRegistered = getCurrentUserIdOrNull() != null;
+
+    if (viewerIsRegistered) {
+      profile.setTrustTier(TrustTier.fromValue(domainUser.getTrustTier().name()));
+    }
+
     UserPrivacySettings privacy = userService.getPrivacySettings(id);
 
     boolean showSocialLinks =

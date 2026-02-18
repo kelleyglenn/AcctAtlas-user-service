@@ -509,6 +509,8 @@ components:
           format: uri
           maxLength: 500
           nullable: true
+        trustTier:
+          $ref: '#/components/schemas/TrustTier'
         memberSince:
           type: string
           format: date-time

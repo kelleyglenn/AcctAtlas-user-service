@@ -195,6 +195,40 @@ class UsersControllerTest {
   }
 
   @Test
+  void getUserById_hidesTrustTier_whenViewerAnonymous() throws Exception {
+    UUID userId = UUID.randomUUID();
+    User user = buildUserWithAllFields(userId);
+    user.setTrustTier(TrustTier.TRUSTED);
+    when(userService.getUserById(userId)).thenReturn(user);
+    when(userService.getPrivacySettings(userId)).thenReturn(buildDefaultPrivacySettings(userId));
+
+    SecurityContextHolder.clearContext();
+
+    mockMvc
+        .perform(get("/users/{id}", userId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.trustTier").doesNotExist());
+  }
+
+  @Test
+  void getUserById_showsTrustTier_whenViewerAuthenticated() throws Exception {
+    UUID profileUserId = UUID.randomUUID();
+    UUID viewerUserId = UUID.randomUUID();
+    User user = buildUserWithAllFields(profileUserId);
+    user.setTrustTier(TrustTier.TRUSTED);
+    when(userService.getUserById(profileUserId)).thenReturn(user);
+    when(userService.getPrivacySettings(profileUserId))
+        .thenReturn(buildDefaultPrivacySettings(profileUserId));
+
+    setAuthenticationContext(viewerUserId);
+
+    mockMvc
+        .perform(get("/users/{id}", profileUserId))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.trustTier").value("TRUSTED"));
+  }
+
+  @Test
   void getUserById_showsSocialLinks_whenVisibilityIsRegistered_andViewerAuthenticated()
       throws Exception {
     UUID profileUserId = UUID.randomUUID();
