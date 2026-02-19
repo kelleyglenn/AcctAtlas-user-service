@@ -44,8 +44,8 @@ public class UserService {
   @Transactional(readOnly = true)
   public PublicProfileData getPublicProfileData(UUID id) {
     User user = getUserByIdInternal(id);
-    UserPrivacySettings privacy = getPrivacySettings(id);
-    Optional<UserSocialLinks> socialLinks = getSocialLinks(id);
+    UserPrivacySettings privacy = getPrivacySettingsInternal(id);
+    Optional<UserSocialLinks> socialLinks = socialLinksRepository.findById(id);
     return new PublicProfileData(user, privacy, socialLinks);
   }
 
@@ -139,14 +139,7 @@ public class UserService {
 
   @Transactional(readOnly = true)
   public UserPrivacySettings getPrivacySettings(UUID userId) {
-    return privacySettingsRepository
-        .findById(userId)
-        .orElseGet(
-            () -> {
-              UserPrivacySettings defaults = new UserPrivacySettings();
-              defaults.setUserId(userId);
-              return defaults;
-            });
+    return getPrivacySettingsInternal(userId);
   }
 
   private UserTrustTierChangedEvent.ChangeReason mapReason(String reason) {
@@ -162,6 +155,17 @@ public class UserService {
 
   private static String emptyToNull(String value) {
     return (value != null && !value.isBlank()) ? value : null;
+  }
+
+  private UserPrivacySettings getPrivacySettingsInternal(UUID userId) {
+    return privacySettingsRepository
+        .findById(userId)
+        .orElseGet(
+            () -> {
+              UserPrivacySettings defaults = new UserPrivacySettings();
+              defaults.setUserId(userId);
+              return defaults;
+            });
   }
 
   private User getUserByIdInternal(UUID id) {
