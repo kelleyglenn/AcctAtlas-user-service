@@ -575,20 +575,6 @@ components:
           format: uri
           nullable: true
 
-    Visibility:
-      type: string
-      enum: [PUBLIC, REGISTERED]
-
-    OAuthLink:
-      type: object
-      required: [provider, linkedAt]
-      properties:
-        provider:
-          $ref: '#/components/schemas/OAuthProvider'
-        linkedAt:
-          type: string
-          format: date-time
-
     TokenPair:
       type: object
       required: [accessToken, refreshToken, expiresIn]
