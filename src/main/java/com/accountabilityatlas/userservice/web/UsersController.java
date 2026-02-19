@@ -1,21 +1,26 @@
 package com.accountabilityatlas.userservice.web;
 
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
+import com.accountabilityatlas.userservice.domain.UserPrivacySettings;
+import com.accountabilityatlas.userservice.domain.UserSocialLinks;
+import com.accountabilityatlas.userservice.domain.Visibility;
+import com.accountabilityatlas.userservice.service.AvatarService;
 import com.accountabilityatlas.userservice.service.UserService;
 import com.accountabilityatlas.userservice.web.api.AdminApi;
 import com.accountabilityatlas.userservice.web.api.UsersApi;
+import com.accountabilityatlas.userservice.web.model.PrivacySettings;
+import com.accountabilityatlas.userservice.web.model.SocialLinks;
 import com.accountabilityatlas.userservice.web.model.TrustTier;
 import com.accountabilityatlas.userservice.web.model.UpdateTrustTierRequest;
 import com.accountabilityatlas.userservice.web.model.UpdateUserRequest;
 import com.accountabilityatlas.userservice.web.model.User;
 import com.accountabilityatlas.userservice.web.model.UserPublicProfile;
-import com.accountabilityatlas.userservice.web.model.UserPublicStats;
 import java.net.URI;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.UUID;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -23,9 +28,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class UsersController implements UsersApi, AdminApi {
 
   private final UserService userService;
+  private final AvatarService avatarService;
 
-  public UsersController(UserService userService) {
+  public UsersController(UserService userService, AvatarService avatarService) {
     this.userService = userService;
+    this.avatarService = avatarService;
   }
 
   @Override
@@ -35,18 +42,46 @@ public class UsersController implements UsersApi, AdminApi {
     UUID userId = auth.getUserId();
 
     com.accountabilityatlas.userservice.domain.User domainUser = userService.getUserById(userId);
-    return ResponseEntity.ok(toApiUser(domainUser));
+    User apiUser = toApiUser(domainUser);
+    enrichUserWithProfileData(apiUser, userId, domainUser.getEmail());
+    return ResponseEntity.ok(apiUser);
   }
 
   @Override
   public ResponseEntity<UserPublicProfile> getUserById(UUID id) {
-    com.accountabilityatlas.userservice.domain.User domainUser = userService.getUserById(id);
-    return ResponseEntity.ok(toPublicProfile(domainUser));
+    UserService.PublicProfileData data = userService.getPublicProfileData(id);
+    UserPublicProfile profile = toPublicProfile(data.user());
+
+    boolean viewerIsRegistered = getCurrentUserIdOrNull() != null;
+
+    if (viewerIsRegistered) {
+      profile.setTrustTier(TrustTier.fromValue(data.user().getTrustTier().name()));
+    }
+
+    boolean showSocialLinks =
+        data.privacySettings().getSocialLinksVisibility() == Visibility.PUBLIC
+            || (data.privacySettings().getSocialLinksVisibility() == Visibility.REGISTERED
+                && viewerIsRegistered);
+
+    if (showSocialLinks) {
+      data.socialLinks().ifPresent(links -> profile.setSocialLinks(toApiSocialLinks(links)));
+    }
+
+    return ResponseEntity.ok(profile);
   }
 
   @Override
   public ResponseEntity<User> updateCurrentUser(UpdateUserRequest updateUserRequest) {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    JwtAuthenticationToken auth =
+        (JwtAuthenticationToken) SecurityContextHolder.getContext().getAuthentication();
+    UUID userId = auth.getUserId();
+
+    com.accountabilityatlas.userservice.domain.User domainUser =
+        userService.updateProfile(userId, updateUserRequest);
+
+    User apiUser = toApiUser(domainUser);
+    enrichUserWithProfileData(apiUser, userId, domainUser.getEmail());
+    return ResponseEntity.ok(apiUser);
   }
 
   @Override
@@ -66,19 +101,26 @@ public class UsersController implements UsersApi, AdminApi {
     if (domainUser.getAvatarUrl() != null) {
       profile.setAvatarUrl(URI.create(domainUser.getAvatarUrl()));
     }
-    profile.setTrustTier(TrustTier.fromValue(domainUser.getTrustTier().name()));
     if (domainUser.getCreatedAt() != null) {
-      profile.setCreatedAt(OffsetDateTime.ofInstant(domainUser.getCreatedAt(), ZoneOffset.UTC));
+      OffsetDateTime created = OffsetDateTime.ofInstant(domainUser.getCreatedAt(), ZoneOffset.UTC);
+      profile.setCreatedAt(created);
+      profile.setMemberSince(created);
     }
 
     if (domainUser.getStats() != null) {
-      UserPublicStats stats = new UserPublicStats();
-      stats.setSubmissionCount(domainUser.getStats().getSubmissionCount());
-      stats.setApprovedCount(domainUser.getStats().getApprovedCount());
-      profile.setStats(stats);
+      profile.setApprovedVideoCount(domainUser.getStats().getApprovedCount());
     }
 
     return profile;
+  }
+
+  private void enrichUserWithProfileData(User apiUser, UUID userId, String email) {
+    UserSocialLinks socialLinks = userService.getSocialLinks(userId).orElse(null);
+    if (socialLinks != null) {
+      apiUser.setSocialLinks(toApiSocialLinks(socialLinks));
+    }
+    apiUser.setPrivacySettings(toApiPrivacySettings(userService.getPrivacySettings(userId)));
+    apiUser.setAvatarSources(avatarService.getAvatarSources(email, socialLinks));
   }
 
   private User toApiUser(com.accountabilityatlas.userservice.domain.User domainUser) {
@@ -95,5 +137,35 @@ public class UsersController implements UsersApi, AdminApi {
       apiUser.setCreatedAt(OffsetDateTime.ofInstant(domainUser.getCreatedAt(), ZoneOffset.UTC));
     }
     return apiUser;
+  }
+
+  private SocialLinks toApiSocialLinks(UserSocialLinks links) {
+    SocialLinks api = new SocialLinks();
+    api.setYoutube(links.getYoutube());
+    api.setFacebook(links.getFacebook());
+    api.setInstagram(links.getInstagram());
+    api.setTiktok(links.getTiktok());
+    api.setxTwitter(links.getXTwitter());
+    api.setBluesky(links.getBluesky());
+    return api;
+  }
+
+  private PrivacySettings toApiPrivacySettings(UserPrivacySettings settings) {
+    PrivacySettings api = new PrivacySettings();
+    api.setSocialLinksVisibility(
+        PrivacySettings.SocialLinksVisibilityEnum.fromValue(
+            settings.getSocialLinksVisibility().name()));
+    api.setSubmissionsVisibility(
+        PrivacySettings.SubmissionsVisibilityEnum.fromValue(
+            settings.getSubmissionsVisibility().name()));
+    return api;
+  }
+
+  private UUID getCurrentUserIdOrNull() {
+    Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+    if (auth instanceof JwtAuthenticationToken jwt) {
+      return jwt.getUserId();
+    }
+    return null;
   }
 }

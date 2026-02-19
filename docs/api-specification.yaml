@@ -358,9 +358,11 @@ paths:
       operationId: getUserById
       summary: Get user public profile
       description: |
-        Returns a user's public profile. Does not include email or sensitive data.
-        Available to any authenticated user.
+        Returns a user's public profile. Privacy settings control which sections
+        are visible. Display name and avatar are always public. Social links
+        visibility depends on the user's privacy settings and the viewer's auth status.
       tags: [Users]
+      security: []
       parameters:
         - name: id
           in: path
@@ -480,6 +482,12 @@ components:
           nullable: true
         trustTier:
           $ref: '#/components/schemas/TrustTier'
+        socialLinks:
+          $ref: '#/components/schemas/SocialLinks'
+        privacySettings:
+          $ref: '#/components/schemas/PrivacySettings'
+        avatarSources:
+          $ref: '#/components/schemas/AvatarSources'
         createdAt:
           type: string
           format: date-time
@@ -488,7 +496,7 @@ components:
     UserPublicProfile:
       type: object
       description: Public-facing user info (no email, no sensitive data)
-      required: [id, displayName, trustTier, createdAt]
+      required: [id, displayName, createdAt]
       properties:
         id:
           type: string
@@ -503,32 +511,69 @@ components:
           nullable: true
         trustTier:
           $ref: '#/components/schemas/TrustTier'
-        stats:
-          $ref: '#/components/schemas/UserPublicStats'
+        memberSince:
+          type: string
+          format: date-time
+        approvedVideoCount:
+          type: integer
+          minimum: 0
+        socialLinks:
+          $ref: '#/components/schemas/SocialLinks'
         createdAt:
           type: string
           format: date-time
 
-    UserPublicStats:
+    SocialLinks:
       type: object
-      description: Public contribution statistics
       properties:
-        submissionCount:
-          type: integer
-          minimum: 0
-        approvedCount:
-          type: integer
-          minimum: 0
-
-    OAuthLink:
-      type: object
-      required: [provider, linkedAt]
-      properties:
-        provider:
-          $ref: '#/components/schemas/OAuthProvider'
-        linkedAt:
+        youtube:
           type: string
-          format: date-time
+          maxLength: 100
+          nullable: true
+        facebook:
+          type: string
+          maxLength: 100
+          nullable: true
+        instagram:
+          type: string
+          maxLength: 50
+          nullable: true
+        tiktok:
+          type: string
+          maxLength: 50
+          nullable: true
+        xTwitter:
+          type: string
+          maxLength: 50
+          nullable: true
+        bluesky:
+          type: string
+          maxLength: 100
+          nullable: true
+
+    PrivacySettings:
+      type: object
+      properties:
+        socialLinksVisibility:
+          type: string
+          enum: [PUBLIC, REGISTERED]
+          default: REGISTERED
+        submissionsVisibility:
+          type: string
+          enum: [PUBLIC, REGISTERED]
+          default: PUBLIC
+
+    AvatarSources:
+      type: object
+      properties:
+        gravatar:
+          type: string
+          format: uri
+          nullable: true
+        youtube:
+          type: string
+          format: uri
+          nullable: true
 
     TokenPair:
       type: object
@@ -694,9 +739,13 @@ components:
           maxLength: 100
         avatarUrl:
           type: string
-          format: uri
           maxLength: 500
           nullable: true
+          description: URL to avatar image
+        socialLinks:
+          $ref: '#/components/schemas/SocialLinks'
+        privacySettings:
+          $ref: '#/components/schemas/PrivacySettings'
       examples:
         - displayName: "UpdatedDisplayName"
           avatarUrl: "https://example.com/new-avatar.jpg"
