@@ -1,5 +1,6 @@
 package com.accountabilityatlas.userservice.config;
 
+import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
 import java.security.KeyPair;
 import java.security.KeyPairGenerator;
@@ -14,7 +15,7 @@ import org.springframework.context.annotation.Configuration;
 public class JwtConfig {
 
   @Bean
-  public KeyPair jwtKeyPair(JwtProperties properties) throws Exception {
+  public KeyPair jwtKeyPair(JwtProperties properties) throws GeneralSecurityException {
     if (properties.getPrivateKey() != null && !properties.getPrivateKey().isBlank()) {
       return loadKeyPair(properties.getPrivateKey());
     }
@@ -23,7 +24,7 @@ public class JwtConfig {
     return generator.generateKeyPair();
   }
 
-  private KeyPair loadKeyPair(String pem) throws Exception {
+  private KeyPair loadKeyPair(String pem) throws GeneralSecurityException {
     String base64 =
         pem.replace("-----BEGIN PRIVATE KEY-----", "")
             .replace("-----END PRIVATE KEY-----", "")
