@@ -13,4 +13,5 @@ import org.springframework.stereotype.Component;
 public class JwtProperties {
   private Duration accessTokenExpiry = Duration.ofMinutes(15);
   private Duration refreshTokenExpiry = Duration.ofDays(7);
+  private String privateKey;
 }

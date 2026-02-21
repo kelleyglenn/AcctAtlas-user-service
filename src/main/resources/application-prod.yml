@@ -1,0 +1,13 @@
+spring:
+  flyway:
+    locations:
+      - classpath:db/migration
+
+app:
+  jwt:
+    private-key: ${APP_JWT_PRIVATE_KEY}
+
+logging:
+  level:
+    com.accountabilityatlas: INFO
+    org.springframework.security: WARN
