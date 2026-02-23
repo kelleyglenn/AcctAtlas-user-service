@@ -91,6 +91,7 @@ public class AuthenticationService {
     String newRefreshTokenHash = tokenService.hashRefreshToken(newRefreshToken);
     session.setRefreshTokenHash(newRefreshTokenHash);
     session.setExpiresAt(now.plus(jwtProperties.getRefreshTokenExpiry()));
+    sessionRepository.save(session);
 
     String accessToken =
         tokenService.generateAccessToken(
