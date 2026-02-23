@@ -27,6 +27,14 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
   }
 
+  @ExceptionHandler(InvalidRefreshTokenException.class)
+  public ResponseEntity<Error> handleInvalidRefreshToken(InvalidRefreshTokenException ex) {
+    Error error = new Error();
+    error.setCode("INVALID_REFRESH_TOKEN");
+    error.setMessage(ex.getMessage());
+    return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(error);
+  }
+
   @ExceptionHandler(AccountLockedException.class)
   public ResponseEntity<Error> handleAccountLocked(AccountLockedException ex) {
     Error error = new Error();
