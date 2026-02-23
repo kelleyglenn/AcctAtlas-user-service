@@ -229,6 +229,124 @@ class AuthIntegrationTest {
   }
 
   @Test
+  void refresh_returnsNewTokenPair() throws Exception {
+    // Register to get initial tokens
+    MvcResult registerResult =
+        mockMvc
+            .perform(
+                post("/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "refresh@example.com",
+                          "password": "SecurePass123",
+                          "displayName": "RefreshUser"
+                        }
+                        """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    String refreshToken =
+        JsonPath.read(registerResult.getResponse().getContentAsString(), "$.tokens.refreshToken");
+
+    // Refresh
+    MvcResult refreshResult =
+        mockMvc
+            .perform(
+                post("/auth/refresh")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        String.format(
+                            """
+                            {"refreshToken": "%s"}
+                            """,
+                            refreshToken)))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.tokens.accessToken").exists())
+            .andExpect(jsonPath("$.tokens.refreshToken").exists())
+            .andExpect(jsonPath("$.tokens.expiresIn").value(900))
+            .andExpect(jsonPath("$.tokens.tokenType").value("Bearer"))
+            .andReturn();
+
+    // New access token should work for authenticated endpoints
+    String newAccessToken =
+        JsonPath.read(refreshResult.getResponse().getContentAsString(), "$.tokens.accessToken");
+    mockMvc
+        .perform(get("/users/me").header("Authorization", "Bearer " + newAccessToken))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.email").value("refresh@example.com"));
+  }
+
+  @Test
+  void refresh_rotatesRefreshToken() throws Exception {
+    MvcResult registerResult =
+        mockMvc
+            .perform(
+                post("/auth/register")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        """
+                        {
+                          "email": "rotate@example.com",
+                          "password": "SecurePass123",
+                          "displayName": "RotateUser"
+                        }
+                        """))
+            .andExpect(status().isCreated())
+            .andReturn();
+
+    String originalRefreshToken =
+        JsonPath.read(registerResult.getResponse().getContentAsString(), "$.tokens.refreshToken");
+
+    // First refresh succeeds
+    MvcResult refreshResult =
+        mockMvc
+            .perform(
+                post("/auth/refresh")
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .content(
+                        String.format(
+                            """
+                            {"refreshToken": "%s"}
+                            """,
+                            originalRefreshToken)))
+            .andExpect(status().isOk())
+            .andReturn();
+
+    String newRefreshToken =
+        JsonPath.read(refreshResult.getResponse().getContentAsString(), "$.tokens.refreshToken");
+    assertThat(newRefreshToken).isNotEqualTo(originalRefreshToken);
+
+    // Original refresh token no longer works (rotation)
+    mockMvc
+        .perform(
+            post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    String.format(
+                        """
+                        {"refreshToken": "%s"}
+                        """,
+                        originalRefreshToken)))
+        .andExpect(status().isUnauthorized());
+  }
+
+  @Test
+  void refresh_rejectsInvalidToken() throws Exception {
+    mockMvc
+        .perform(
+            post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"refreshToken": "completely-invalid-token"}
+                    """))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
+  }
+
+  @Test
   void jwksEndpoint_returnsValidJwkSet() throws Exception {
     mockMvc
         .perform(get("/.well-known/jwks.json"))
