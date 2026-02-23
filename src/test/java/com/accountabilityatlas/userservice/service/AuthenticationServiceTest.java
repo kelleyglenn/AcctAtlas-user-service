@@ -13,6 +13,7 @@ import com.accountabilityatlas.userservice.domain.Session;
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import com.accountabilityatlas.userservice.domain.User;
 import com.accountabilityatlas.userservice.exception.InvalidCredentialsException;
+import com.accountabilityatlas.userservice.exception.InvalidRefreshTokenException;
 import com.accountabilityatlas.userservice.repository.SessionRepository;
 import com.accountabilityatlas.userservice.repository.UserRepository;
 import java.time.Duration;
@@ -25,6 +26,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.test.util.ReflectionTestUtils;
 
 @ExtendWith(MockitoExtension.class)
 class AuthenticationServiceTest {
@@ -136,6 +138,91 @@ class AuthenticationServiceTest {
 
     // Assert
     verify(sessionRepository).revokeById(eq(sessionId), any(Instant.class));
+  }
+
+  @Test
+  void refresh_returnsNewTokenPairOnValidToken() {
+    UUID userId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
+    User user = buildUser("test@example.com", "$2a$12$hashed");
+    ReflectionTestUtils.setField(user, "id", userId);
+
+    Session session = new Session();
+    ReflectionTestUtils.setField(session, "id", sessionId);
+    session.setUserId(userId);
+    session.setRefreshTokenHash("old-hash");
+    session.setExpiresAt(Instant.now().plusSeconds(86400));
+
+    when(tokenService.hashRefreshToken("valid-refresh-token")).thenReturn("old-hash");
+    when(sessionRepository.findValidByRefreshTokenHash(eq("old-hash"), any(Instant.class)))
+        .thenReturn(Optional.of(session));
+    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+    when(tokenService.generateRefreshToken()).thenReturn("new-refresh-token");
+    when(tokenService.hashRefreshToken("new-refresh-token")).thenReturn("new-hash");
+    when(jwtProperties.getRefreshTokenExpiry()).thenReturn(Duration.ofDays(7));
+    when(tokenService.generateAccessToken(eq(userId), eq("test@example.com"), any(), eq(sessionId)))
+        .thenReturn("new-access-token");
+
+    AuthResult result = authenticationService.refresh("valid-refresh-token");
+
+    assertThat(result.accessToken()).isEqualTo("new-access-token");
+    assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
+    assertThat(result.user()).isEqualTo(user);
+  }
+
+  @Test
+  void refresh_rotatesRefreshTokenHash() {
+    UUID userId = UUID.randomUUID();
+    UUID sessionId = UUID.randomUUID();
+    User user = buildUser("test@example.com", "$2a$12$hashed");
+    ReflectionTestUtils.setField(user, "id", userId);
+
+    Session session = new Session();
+    ReflectionTestUtils.setField(session, "id", sessionId);
+    session.setUserId(userId);
+    session.setRefreshTokenHash("old-hash");
+    session.setExpiresAt(Instant.now().plusSeconds(86400));
+
+    when(tokenService.hashRefreshToken("valid-refresh-token")).thenReturn("old-hash");
+    when(sessionRepository.findValidByRefreshTokenHash(eq("old-hash"), any(Instant.class)))
+        .thenReturn(Optional.of(session));
+    when(userRepository.findById(userId)).thenReturn(Optional.of(user));
+    when(tokenService.generateRefreshToken()).thenReturn("new-refresh-token");
+    when(tokenService.hashRefreshToken("new-refresh-token")).thenReturn("new-hash");
+    when(jwtProperties.getRefreshTokenExpiry()).thenReturn(Duration.ofDays(7));
+    when(tokenService.generateAccessToken(any(), anyString(), any(), any()))
+        .thenReturn("new-access-token");
+
+    authenticationService.refresh("valid-refresh-token");
+
+    assertThat(session.getRefreshTokenHash()).isEqualTo("new-hash");
+  }
+
+  @Test
+  void refresh_throwsOnInvalidToken() {
+    when(tokenService.hashRefreshToken("bad-token")).thenReturn("bad-hash");
+    when(sessionRepository.findValidByRefreshTokenHash(eq("bad-hash"), any(Instant.class)))
+        .thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> authenticationService.refresh("bad-token"))
+        .isInstanceOf(InvalidRefreshTokenException.class);
+  }
+
+  @Test
+  void refresh_throwsWhenUserNotFound() {
+    UUID userId = UUID.randomUUID();
+    Session session = new Session();
+    session.setUserId(userId);
+    session.setRefreshTokenHash("hash");
+    session.setExpiresAt(Instant.now().plusSeconds(86400));
+
+    when(tokenService.hashRefreshToken("token")).thenReturn("hash");
+    when(sessionRepository.findValidByRefreshTokenHash(eq("hash"), any(Instant.class)))
+        .thenReturn(Optional.of(session));
+    when(userRepository.findById(userId)).thenReturn(Optional.empty());
+
+    assertThatThrownBy(() -> authenticationService.refresh("token"))
+        .isInstanceOf(InvalidRefreshTokenException.class);
   }
 
   private User buildUser(String email, String passwordHash) {

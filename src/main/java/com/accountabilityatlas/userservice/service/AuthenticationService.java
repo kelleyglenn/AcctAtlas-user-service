@@ -4,6 +4,7 @@ import com.accountabilityatlas.userservice.config.JwtProperties;
 import com.accountabilityatlas.userservice.domain.Session;
 import com.accountabilityatlas.userservice.domain.User;
 import com.accountabilityatlas.userservice.exception.InvalidCredentialsException;
+import com.accountabilityatlas.userservice.exception.InvalidRefreshTokenException;
 import com.accountabilityatlas.userservice.repository.SessionRepository;
 import com.accountabilityatlas.userservice.repository.UserRepository;
 import java.time.Instant;
@@ -67,5 +68,34 @@ public class AuthenticationService {
   @Transactional
   public void logout(UUID sessionId) {
     sessionRepository.revokeById(sessionId, Instant.now());
+  }
+
+  @Transactional
+  public AuthResult refresh(String refreshToken) {
+    String hash = tokenService.hashRefreshToken(refreshToken);
+    Instant now = Instant.now();
+
+    Session session =
+        sessionRepository
+            .findValidByRefreshTokenHash(hash, now)
+            .orElseThrow(
+                () -> new InvalidRefreshTokenException("Invalid or expired refresh token"));
+
+    User user =
+        userRepository
+            .findById(session.getUserId())
+            .orElseThrow(() -> new InvalidRefreshTokenException("User not found for session"));
+
+    // Rotate refresh token
+    String newRefreshToken = tokenService.generateRefreshToken();
+    String newRefreshTokenHash = tokenService.hashRefreshToken(newRefreshToken);
+    session.setRefreshTokenHash(newRefreshTokenHash);
+    session.setExpiresAt(now.plus(jwtProperties.getRefreshTokenExpiry()));
+
+    String accessToken =
+        tokenService.generateAccessToken(
+            user.getId(), user.getEmail(), user.getTrustTier(), session.getId());
+
+    return new AuthResult(user, accessToken, newRefreshToken);
   }
 }
