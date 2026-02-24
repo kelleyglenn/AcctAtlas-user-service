@@ -41,6 +41,7 @@ class AuthenticationServiceTest {
 
   @Test
   void login_returnsTokensOnValidCredentials() {
+    // Arrange
     User user = buildUser("test@example.com", "$2a$12$hashed");
     when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
     when(passwordEncoder.matches("password123", "$2a$12$hashed")).thenReturn(true);
@@ -51,8 +52,10 @@ class AuthenticationServiceTest {
     when(tokenService.hashRefreshToken("refresh-token")).thenReturn("hashed-refresh");
     when(sessionRepository.save(any(Session.class))).thenAnswer(inv -> inv.getArgument(0));
 
+    // Act
     AuthResult result = authenticationService.login("test@example.com", "password123", null, null);
 
+    // Assert
     assertThat(result.accessToken()).isEqualTo("access-token");
     assertThat(result.refreshToken()).isEqualTo("refresh-token");
     assertThat(result.user()).isEqualTo(user);
@@ -60,6 +63,7 @@ class AuthenticationServiceTest {
 
   @Test
   void login_createsSession() {
+    // Arrange
     User user = buildUser("test@example.com", "$2a$12$hashed");
     when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
     when(passwordEncoder.matches(any(), any())).thenReturn(true);
@@ -70,15 +74,19 @@ class AuthenticationServiceTest {
     when(tokenService.hashRefreshToken(any())).thenReturn("hashed-refresh");
     when(sessionRepository.save(any(Session.class))).thenAnswer(inv -> inv.getArgument(0));
 
+    // Act
     authenticationService.login("test@example.com", "password123", "Chrome", "127.0.0.1");
 
+    // Assert
     verify(sessionRepository).save(any(Session.class));
   }
 
   @Test
   void login_throwsOnNonExistentEmail() {
+    // Arrange
     when(userRepository.findByEmail("nobody@example.com")).thenReturn(Optional.empty());
 
+    // Act & Assert
     assertThatThrownBy(
             () -> authenticationService.login("nobody@example.com", "password", null, null))
         .isInstanceOf(InvalidCredentialsException.class)
@@ -87,10 +95,12 @@ class AuthenticationServiceTest {
 
   @Test
   void login_throwsOnWrongPassword() {
+    // Arrange
     User user = buildUser("test@example.com", "$2a$12$hashed");
     when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
     when(passwordEncoder.matches("wrong-password", "$2a$12$hashed")).thenReturn(false);
 
+    // Act & Assert
     assertThatThrownBy(
             () -> authenticationService.login("test@example.com", "wrong-password", null, null))
         .isInstanceOf(InvalidCredentialsException.class)
@@ -99,6 +109,7 @@ class AuthenticationServiceTest {
 
   @Test
   void login_normalizesEmailToLowercase() {
+    // Arrange
     User user = buildUser("test@example.com", "$2a$12$hashed");
     when(userRepository.findByEmail("test@example.com")).thenReturn(Optional.of(user));
     when(passwordEncoder.matches(any(), any())).thenReturn(true);
@@ -109,8 +120,10 @@ class AuthenticationServiceTest {
     when(tokenService.hashRefreshToken(any())).thenReturn("hashed");
     when(sessionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
 
+    // Act
     authenticationService.login("Test@Example.COM", "password123", null, null);
 
+    // Assert
     verify(userRepository).findByEmail("test@example.com");
   }
 
@@ -142,6 +155,7 @@ class AuthenticationServiceTest {
 
   @Test
   void refresh_returnsNewTokenPairOnValidToken() {
+    // Arrange
     UUID userId = UUID.randomUUID();
     UUID sessionId = UUID.randomUUID();
     User user = buildUser("test@example.com", "$2a$12$hashed");
@@ -163,8 +177,10 @@ class AuthenticationServiceTest {
     when(tokenService.generateAccessToken(eq(userId), eq("test@example.com"), any(), eq(sessionId)))
         .thenReturn("new-access-token");
 
+    // Act
     AuthResult result = authenticationService.refresh("valid-refresh-token");
 
+    // Assert
     assertThat(result.accessToken()).isEqualTo("new-access-token");
     assertThat(result.refreshToken()).isEqualTo("new-refresh-token");
     assertThat(result.user()).isEqualTo(user);
@@ -172,6 +188,7 @@ class AuthenticationServiceTest {
 
   @Test
   void refresh_rotatesRefreshTokenHash() {
+    // Arrange
     UUID userId = UUID.randomUUID();
     UUID sessionId = UUID.randomUUID();
     User user = buildUser("test@example.com", "$2a$12$hashed");
@@ -193,23 +210,28 @@ class AuthenticationServiceTest {
     when(tokenService.generateAccessToken(any(), anyString(), any(), any()))
         .thenReturn("new-access-token");
 
+    // Act
     authenticationService.refresh("valid-refresh-token");
 
+    // Assert
     assertThat(session.getRefreshTokenHash()).isEqualTo("new-hash");
   }
 
   @Test
   void refresh_throwsOnInvalidToken() {
+    // Arrange
     when(tokenService.hashRefreshToken("bad-token")).thenReturn("bad-hash");
     when(sessionRepository.findValidByRefreshTokenHash(eq("bad-hash"), any(Instant.class)))
         .thenReturn(Optional.empty());
 
+    // Act & Assert
     assertThatThrownBy(() -> authenticationService.refresh("bad-token"))
         .isInstanceOf(InvalidRefreshTokenException.class);
   }
 
   @Test
   void refresh_throwsWhenUserNotFound() {
+    // Arrange
     UUID userId = UUID.randomUUID();
     Session session = new Session();
     session.setUserId(userId);
@@ -221,6 +243,7 @@ class AuthenticationServiceTest {
         .thenReturn(Optional.of(session));
     when(userRepository.findById(userId)).thenReturn(Optional.empty());
 
+    // Act & Assert
     assertThatThrownBy(() -> authenticationService.refresh("token"))
         .isInstanceOf(InvalidRefreshTokenException.class);
   }
