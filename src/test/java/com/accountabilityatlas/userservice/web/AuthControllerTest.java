@@ -10,16 +10,20 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter;
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
+import com.accountabilityatlas.userservice.config.JwtProperties;
 import com.accountabilityatlas.userservice.domain.TrustTier;
 import com.accountabilityatlas.userservice.exception.EmailAlreadyExistsException;
 import com.accountabilityatlas.userservice.exception.GlobalExceptionHandler;
 import com.accountabilityatlas.userservice.exception.InvalidCredentialsException;
+import com.accountabilityatlas.userservice.exception.InvalidRefreshTokenException;
 import com.accountabilityatlas.userservice.service.AuthResult;
 import com.accountabilityatlas.userservice.service.AuthenticationService;
 import com.accountabilityatlas.userservice.service.RegistrationService;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.UUID;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -42,9 +46,16 @@ class AuthControllerTest {
   @MockitoBean private RegistrationService registrationService;
   @MockitoBean private AuthenticationService authenticationService;
 
+  @MockitoBean private JwtProperties jwtProperties;
+
   @SuppressWarnings("UnusedVariable")
   @MockitoBean
   private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+  @BeforeEach
+  void setUp() {
+    when(jwtProperties.getAccessTokenExpiry()).thenReturn(Duration.ofMinutes(15));
+  }
 
   @Test
   void register_returns201OnSuccess() throws Exception {
@@ -188,16 +199,41 @@ class AuthControllerTest {
   }
 
   @Test
-  void refreshTokens_returns501() throws Exception {
+  void refreshTokens_returns200OnSuccess() throws Exception {
+    var user = buildDomainUser();
+    var result = new AuthResult(user, "new-access-token", "new-refresh-token");
+    when(authenticationService.refresh("valid-refresh-token")).thenReturn(result);
+
     mockMvc
         .perform(
             post("/auth/refresh")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(
                     """
-                    {"refreshToken": "fake-token"}
+                    {"refreshToken": "valid-refresh-token"}
                     """))
-        .andExpect(status().isNotImplemented());
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.tokens.accessToken").value("new-access-token"))
+        .andExpect(jsonPath("$.tokens.refreshToken").value("new-refresh-token"))
+        .andExpect(jsonPath("$.tokens.expiresIn").value(900))
+        .andExpect(jsonPath("$.tokens.tokenType").value("Bearer"));
+  }
+
+  @Test
+  void refreshTokens_returns401OnInvalidToken() throws Exception {
+    when(authenticationService.refresh("bad-token"))
+        .thenThrow(new InvalidRefreshTokenException("Invalid or expired refresh token"));
+
+    mockMvc
+        .perform(
+            post("/auth/refresh")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(
+                    """
+                    {"refreshToken": "bad-token"}
+                    """))
+        .andExpect(status().isUnauthorized())
+        .andExpect(jsonPath("$.code").value("INVALID_REFRESH_TOKEN"));
   }
 
   @Test

@@ -1,6 +1,7 @@
 package com.accountabilityatlas.userservice.web;
 
 import com.accountabilityatlas.userservice.config.JwtAuthenticationFilter.JwtAuthenticationToken;
+import com.accountabilityatlas.userservice.config.JwtProperties;
 import com.accountabilityatlas.userservice.service.AuthResult;
 import com.accountabilityatlas.userservice.service.AuthenticationService;
 import com.accountabilityatlas.userservice.service.RegistrationService;
@@ -32,11 +33,15 @@ public class AuthController implements AuthenticationApi {
 
   private final RegistrationService registrationService;
   private final AuthenticationService authenticationService;
+  private final JwtProperties jwtProperties;
 
   public AuthController(
-      RegistrationService registrationService, AuthenticationService authenticationService) {
+      RegistrationService registrationService,
+      AuthenticationService authenticationService,
+      JwtProperties jwtProperties) {
     this.registrationService = registrationService;
     this.authenticationService = authenticationService;
+    this.jwtProperties = jwtProperties;
   }
 
   @Override
@@ -80,7 +85,11 @@ public class AuthController implements AuthenticationApi {
 
   @Override
   public ResponseEntity<RefreshResponse> refreshTokens(RefreshRequest refreshRequest) {
-    return ResponseEntity.status(HttpStatus.NOT_IMPLEMENTED).build();
+    AuthResult result = authenticationService.refresh(refreshRequest.getRefreshToken());
+
+    RefreshResponse response = new RefreshResponse();
+    response.setTokens(toTokenPair(result.accessToken(), result.refreshToken()));
+    return ResponseEntity.ok(response);
   }
 
   @Override
@@ -117,7 +126,7 @@ public class AuthController implements AuthenticationApi {
     TokenPair tokens = new TokenPair();
     tokens.setAccessToken(accessToken);
     tokens.setRefreshToken(refreshToken);
-    tokens.setExpiresIn(900);
+    tokens.setExpiresIn((int) jwtProperties.getAccessTokenExpiry().toSeconds());
     tokens.setTokenType("Bearer");
     return tokens;
   }

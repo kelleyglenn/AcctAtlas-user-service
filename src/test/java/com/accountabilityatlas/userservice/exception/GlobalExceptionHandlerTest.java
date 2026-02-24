@@ -55,6 +55,22 @@ class GlobalExceptionHandlerTest {
   }
 
   @Test
+  void handleInvalidRefreshToken_returns401WithInvalidRefreshTokenCode() {
+    // Arrange
+    InvalidRefreshTokenException ex =
+        new InvalidRefreshTokenException("Invalid or expired refresh token");
+
+    // Act
+    ResponseEntity<Error> response = handler.handleInvalidRefreshToken(ex);
+
+    // Assert
+    assertThat(response.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
+    assertThat(response.getBody()).isNotNull();
+    assertThat(response.getBody().getCode()).isEqualTo("INVALID_REFRESH_TOKEN");
+    assertThat(response.getBody().getMessage()).isEqualTo("Invalid or expired refresh token");
+  }
+
+  @Test
   void handleAccountLocked_returns429WithAccountLockedCode() {
     // Arrange
     AccountLockedException ex = new AccountLockedException();
@@ -102,8 +118,8 @@ class GlobalExceptionHandlerTest {
     assertThat(response.getBody().getCode()).isEqualTo("VALIDATION_ERROR");
     assertThat(response.getBody().getMessage()).isEqualTo("Request validation failed");
     assertThat(response.getBody().getDetails()).hasSize(1);
-    assertThat(response.getBody().getDetails().get(0).getField()).isEqualTo("displayName");
-    assertThat(response.getBody().getDetails().get(0).getMessage())
+    assertThat(response.getBody().getDetails().getFirst().getField()).isEqualTo("displayName");
+    assertThat(response.getBody().getDetails().getFirst().getMessage())
         .isEqualTo("size must be between 2 and 50");
   }
 
