@@ -47,3 +47,5 @@ logging:
 app:
   sqs:
     user-events-queue: user-events
+    user-video-events-queue: user-video-events
+    user-video-status-events-queue: user-video-status-events
