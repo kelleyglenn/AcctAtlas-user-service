@@ -121,7 +121,7 @@ class UserStatsServiceTest {
 
     ArgumentCaptor<UserStats> captor = ArgumentCaptor.forClass(UserStats.class);
     verify(userStatsRepository).save(captor.capture());
-    assertThat(captor.getValue().getApprovedCount()).isEqualTo(0);
+    assertThat(captor.getValue().getApprovedCount()).isZero();
     assertThat(captor.getValue().getRejectedCount()).isEqualTo(1);
   }
 
@@ -135,7 +135,7 @@ class UserStatsServiceTest {
 
     ArgumentCaptor<UserStats> captor = ArgumentCaptor.forClass(UserStats.class);
     verify(userStatsRepository).save(captor.capture());
-    assertThat(captor.getValue().getRejectedCount()).isEqualTo(0);
+    assertThat(captor.getValue().getRejectedCount()).isZero();
   }
 
   @Test
