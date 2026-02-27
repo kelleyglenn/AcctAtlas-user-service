@@ -23,6 +23,7 @@ import org.springframework.test.web.servlet.MvcResult;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import software.amazon.awssdk.services.sqs.SqsAsyncClient;
 
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -45,15 +46,18 @@ class AuthIntegrationTest {
     registry.add("spring.flyway.url", postgres::getJdbcUrl);
     registry.add("spring.flyway.user", postgres::getUsername);
     registry.add("spring.flyway.password", postgres::getPassword);
-    // Exclude Redis auto-configuration since no Redis container is provided
+    // Exclude Redis and SQS auto-configuration since no Redis/LocalStack containers are provided
     registry.add(
         "spring.autoconfigure.exclude",
-        () -> "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration");
+        () ->
+            "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
+                + "io.awspring.cloud.autoconfigure.sqs.SqsAutoConfiguration");
   }
 
   @Autowired private MockMvc mockMvc;
 
   @MockitoBean private EventPublisher eventPublisher;
+  @MockitoBean private SqsAsyncClient sqsAsyncClient;
 
   @Test
   void registerThenLogin_fullFlow() throws Exception {
